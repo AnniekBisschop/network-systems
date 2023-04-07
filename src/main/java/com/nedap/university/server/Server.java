@@ -22,7 +22,7 @@ public class Server {
                 // receive packet from client
                 socket.receive(receivePacket);
                 String message = new String(receivePacket.getData(), 0, receivePacket.getLength());
-                String[] messageArray = message.split(" ", 2);
+                String[] messageArray = message.split(" ");
 
                 switch (messageArray[0]) {
                     case "Hello":
@@ -34,9 +34,28 @@ public class Server {
                         socket.send(sendPacket);
                         break;
                     case "upload":
+                        if (messageArray.length < 2) {
+                            // log an error and send an error response to the client
+                            System.err.println("Received invalid upload request from client " + receivePacket.getAddress() + ":" + receivePacket.getPort());
+                            String errorResponse = "Invalid upload request";
+                            byte[] responseBuffer = errorResponse.getBytes();
+                            DatagramPacket responsePacket = new DatagramPacket(responseBuffer, responseBuffer.length, receivePacket.getAddress(), receivePacket.getPort());
+                            socket.send(responsePacket);
+                            break;
+                        }
+
+                        // log that the upload request has been received
+                        System.out.println("Received upload request from client " + receivePacket.getAddress() + ":" + receivePacket.getPort());
+
+                        // send a response to the client indicating that the server is ready to receive the file
+                        String uploadResponse = "Ready to receive file";
+                        byte[] responseBuffer = uploadResponse.getBytes();
+                        DatagramPacket responsePacket = new DatagramPacket(responseBuffer, responseBuffer.length, receivePacket.getAddress(), receivePacket.getPort());
+                        socket.send(responsePacket);
+
                         // receive file from client and store in a folder
                         String fileName = messageArray[1];
-                        File file = new File(fileName);
+                        File file = new File("/home/pi/data/" + fileName);
                         FileOutputStream fileOutputStream = new FileOutputStream(file);
                         byte[] buffer = new byte[1024];
                         DatagramPacket dataPacket = new DatagramPacket(buffer, buffer.length);
@@ -48,27 +67,10 @@ public class Server {
                             fileOutputStream.write(dataPacket.getData(), 0, dataPacket.getLength());
                         }
                         fileOutputStream.close();
+
                         // send a response to the client indicating the upload was successful
-                        String uploadResponse = "File uploaded successfully";
-                        byte[] responseBuffer = uploadResponse.getBytes();
-                        DatagramPacket responsePacket = new DatagramPacket(responseBuffer, responseBuffer.length, receivePacket.getAddress(), receivePacket.getPort());
-                        socket.send(responsePacket);
-                        break;
-                    case "download":
-                        // read file from a folder and send to the client in packets
-                        String downloadFileName = messageArray[1];
-                        File downloadFile = new File(downloadFileName);
-                        FileInputStream fileInputStream = new FileInputStream(downloadFile);
-                        buffer = new byte[1024];
-                        int bytesRead;
-                        while ((bytesRead = fileInputStream.read(buffer)) != -1) {
-                            DatagramPacket packet = new DatagramPacket(buffer, bytesRead, receivePacket.getAddress(), receivePacket.getPort());
-                            socket.send(packet);
-                        }
-                        fileInputStream.close();
-                        // send a response to the client indicating the download was successful
-                        String downloadResponse = "File downloaded successfully";
-                        responseBuffer = downloadResponse.getBytes();
+                        uploadResponse = "File uploaded successfully";
+                        responseBuffer = uploadResponse.getBytes();
                         responsePacket = new DatagramPacket(responseBuffer, responseBuffer.length, receivePacket.getAddress(), receivePacket.getPort());
                         socket.send(responsePacket);
                         break;

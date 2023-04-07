@@ -29,7 +29,7 @@ public class Client {
 
             // display response and menu options to user
             System.out.println(response);
-            System.out.print("Enter your choice: no. 1 or 2");
+            System.out.print("Enter your choice: no. 1 or 2\n");
 
             // read user choice from console
             BufferedReader in = new BufferedReader(new InputStreamReader(System.in));
@@ -37,34 +37,39 @@ public class Client {
 
             switch (choice) {
                 case "1":
-                    try {
-                        // send upload request to server
-                        System.out.print("Enter file path: ");
-                        String filePath = in.readLine();
-                        File file = new File(filePath);
-                        if (!file.exists()) {
-                            System.out.println("File not found.");
-                            break;
-                        }
-                        String uploadMessage = "upload " + file.getName();
-                        byte[] uploadBuffer = uploadMessage.getBytes();
-                        DatagramPacket uploadPacket = new DatagramPacket(uploadBuffer, uploadBuffer.length, InetAddress.getLocalHost(), 12345);
-                        socket.send(uploadPacket);
-
-                        // read file from local file system and send to server in packets
-                        byte[] fileBuffer = new byte[1024];
-                        FileInputStream fileInputStream = new FileInputStream(file);
-                        int bytesRead = 0;
-                        int packetCount = 0;
-                        while ((bytesRead = fileInputStream.read(fileBuffer)) != -1) {
-                            packetCount++;
-                            DatagramPacket filePacket = new DatagramPacket(fileBuffer, bytesRead, InetAddress.getLocalHost(), 12345);
-                            socket.send(filePacket);
-                        }
-                        System.out.println("File sent in " + packetCount + " packets.");
-                    } catch (IOException e) {
-                        e.printStackTrace();
-                    }
+//                    try {
+//                        // send upload request to server
+//                        System.out.print("Enter file path: ");
+//                        String filePath = in.readLine();
+//                        File file = new File(filePath);
+//                        if (!file.exists()) {
+//                            System.out.println("File not found.");
+//                            break;
+//                        }
+//                        String uploadMessage = "upload " + file.getName();
+//                        System.out.println(uploadMessage.toString());
+//                        byte[] uploadBuffer = uploadMessage.getBytes();
+//                        DatagramPacket uploadPacket = new DatagramPacket(uploadBuffer, uploadBuffer.length, InetAddress.getLocalHost(), 12345);
+//                        socket.send(uploadPacket);
+//
+//                        // read file from local file system and send to server in packets
+//                        byte[] fileBuffer = new byte[1024];
+//                        FileInputStream fileInputStream = new FileInputStream(file);
+//                        int bytesRead = 0;
+//                        int packetCount = 0;
+//                        while ((bytesRead = fileInputStream.read(fileBuffer)) != -1) {
+//                            packetCount++;
+//                            DatagramPacket filePacket = new DatagramPacket(fileBuffer, bytesRead, InetAddress.getLocalHost(), 12345);
+//                            socket.send(filePacket);
+//                        }
+//                        System.out.println("File sent in " + packetCount + " packets.");
+//                    } catch (IOException e) {
+//                        e.printStackTrace();
+//                    }
+                    // send "Hello server" to server
+                    byte[] uploadBuffer = "upload".getBytes();
+                    DatagramPacket uploadPacket = new DatagramPacket(uploadBuffer, uploadBuffer.length, serverAddress, 9090);
+                    socket.send(uploadPacket);
                     break;
 
                 case "2":
