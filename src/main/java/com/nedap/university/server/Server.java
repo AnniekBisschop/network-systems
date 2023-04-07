@@ -53,15 +53,24 @@ public class Server {
                         // log that the upload request has been received
                         System.out.println("Received upload request from client " + receivePacket.getAddress() + ":" + receivePacket.getPort());
                         System.out.println(messageArray[1]);
-                        // send a response to the client indicating that the server is ready to receive the file
-                        String uploadResponse = "Ready to receive file";
-                        byte[] responseBuffer = uploadResponse.getBytes();
-                        DatagramPacket responsePacket = new DatagramPacket(responseBuffer, responseBuffer.length, receivePacket.getAddress(), receivePacket.getPort());
-                        socket.send(responsePacket);
 
                         // receive file from client and store in a folder
                         String fileName = messageArray[1];
                         File file = new File("/home/pi/data/" + fileName);
+                        if (file.exists()) {
+                            // send a response to the client indicating that the file already exists
+                            String errorResponse = "File already exists";
+                            byte[] responseBuffer = errorResponse.getBytes();
+                            DatagramPacket responsePacket = new DatagramPacket(responseBuffer, responseBuffer.length, receivePacket.getAddress(), receivePacket.getPort());
+                            socket.send(responsePacket);
+                        } else {
+                            // send a response to the client indicating that the server is ready to receive the file
+                            String uploadResponse = "Ready to receive file";
+                            byte[] responseBuffer = uploadResponse.getBytes();
+                            DatagramPacket responsePacket = new DatagramPacket(responseBuffer, responseBuffer.length, receivePacket.getAddress(), receivePacket.getPort());
+                            socket.send(responsePacket);
+                        }
+
 
                         FileOutputStream fileOutputStream = new FileOutputStream(file);
                         // create a buffer to hold incoming data packets and a new DatagramPacket to receive data packets from the socket
@@ -75,17 +84,20 @@ public class Server {
                                 break;
                             }
 
-                            // write the received data to the file
+                            // write the entire contents of the data packet to the output file starting
+                            // from the beginning of the byte array.
                             fileOutputStream.write(dataPacket.getData(), 0, dataPacket.getLength());
                         }
                         fileOutputStream.close();
 
                         // send a response to the client indicating the upload was successful
-                        uploadResponse = "File uploaded successfully";
-                        responseBuffer = uploadResponse.getBytes();
-                        responsePacket = new DatagramPacket(responseBuffer, responseBuffer.length, receivePacket.getAddress(), receivePacket.getPort());
+                        String uploadResponse = "File uploaded successfully";
+                        byte[] responseBuffer = uploadResponse.getBytes();
+                        DatagramPacket responsePacket = new DatagramPacket(responseBuffer, responseBuffer.length, receivePacket.getAddress(), receivePacket.getPort());
                         socket.send(responsePacket);
                         break;
+                    case "list":
+                        System.out.println("show list");
                 }
             }
         } catch (Exception e) {

@@ -47,10 +47,25 @@ public class Client {
                             break;
                         }
                         String uploadMessage = "upload " + file.getName();
-                        System.out.println(uploadMessage);
+
                         byte[] uploadBuffer = uploadMessage.getBytes();
                         DatagramPacket uploadPacket = new DatagramPacket(uploadBuffer, uploadBuffer.length, serverAddress, 9090);
                         socket.send(uploadPacket);
+
+                        // receive response from server
+                        byte[] responseBuffer = new byte[1024];
+                        DatagramPacket responsePacket = new DatagramPacket(responseBuffer, responseBuffer.length);
+                        socket.receive(responsePacket);
+                        String responseUpload = new String(responsePacket.getData(), 0, responsePacket.getLength());
+                        if (responseUpload.equals("Ready to receive file")) {
+                            System.out.println("Server is ready to receive file.");
+                        } else if (responseUpload.equals("File already exists")) {
+                            System.out.println("File already exists on server.");
+                            break;
+                        } else {
+                            System.err.println("Received unexpected response from server: " + responseUpload);
+                            break;
+                        }
 
                         // read file from local file system and send to server in packets
                         byte[] fileBuffer = new byte[1024];
@@ -62,37 +77,17 @@ public class Client {
                             DatagramPacket filePacket = new DatagramPacket(fileBuffer, bytesRead, serverAddress, 9090);
                             socket.send(filePacket);
                         }
+
+                        // send end of file marker to server
+                        String endMessage = "end";
+                        byte[] endBuffer = endMessage.getBytes();
+                        DatagramPacket endPacket = new DatagramPacket(endBuffer, endBuffer.length, serverAddress, 9090);
+                        socket.send(endPacket);
+
                         System.out.println("File sent in " + packetCount + " packets.");
                     } catch (IOException e) {
                         e.printStackTrace();
                     }
-
-
-                    break;
-
-                case "2":
-                    // send download request to server
-                    System.out.print("Enter file name: ");
-                    System.out.print("format: download <filename> ");
-                    String downloadFileName = in.readLine();
-                    String downloadMessage = "download " + downloadFileName;
-                    byte[] downloadBuffer = downloadMessage.getBytes();
-                    DatagramPacket downloadPacket = new DatagramPacket(downloadBuffer, downloadBuffer.length, InetAddress.getLocalHost(), 12345);
-                    socket.send(downloadPacket);
-
-                    // receive file from server and save to local file system
-                    FileOutputStream fileOutputStream = new FileOutputStream(downloadFileName);
-                    byte[] packetBuffer = new byte[1024];
-                    DatagramPacket packet = new DatagramPacket(packetBuffer, packetBuffer.length);
-                    while (true) {
-                        socket.receive(packet);
-                        byte[] data = packet.getData();
-                        if (data[0] == 'd' && data[1] == 'o' && data[2] == 'n' && data[3] == 'e') {
-                            break;
-                        }
-                        fileOutputStream.write(data, 0, packet.getLength());
-                    }
-                    fileOutputStream.close();
                     break;
                 default:
                     System.out.println("Invalid choice");
