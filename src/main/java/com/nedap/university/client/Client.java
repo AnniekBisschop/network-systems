@@ -37,22 +37,22 @@ public class Client {
 
             switch (choice) {
                 case "1":
-//                    try {
-//                        // send upload request to server
-//                        System.out.print("Enter file path: ");
-//                        String filePath = in.readLine();
-//                        File file = new File(filePath);
-//                        if (!file.exists()) {
-//                            System.out.println("File not found.");
-//                            break;
-//                        }
-//                        String uploadMessage = "upload " + file.getName();
-//                        System.out.println(uploadMessage.toString());
-//                        byte[] uploadBuffer = uploadMessage.getBytes();
-//                        DatagramPacket uploadPacket = new DatagramPacket(uploadBuffer, uploadBuffer.length, InetAddress.getLocalHost(), 12345);
-//                        socket.send(uploadPacket);
-//
-//                        // read file from local file system and send to server in packets
+                    try {
+                        // send upload request to server
+                        System.out.print("Enter path to file you want to upload: ");
+                        String filePath = in.readLine();
+                        File file = new File(filePath);
+                        if (!file.exists()) {
+                            System.out.println("File not found.");
+                            break;
+                        }
+                        String uploadMessage = "upload " + file.getName();
+                        System.out.println(uploadMessage);
+                        byte[] uploadBuffer = uploadMessage.getBytes();
+                        DatagramPacket uploadPacket = new DatagramPacket(uploadBuffer, uploadBuffer.length, serverAddress, 9090);
+                        socket.send(uploadPacket);
+
+                        // read file from local file system and send to server in packets
 //                        byte[] fileBuffer = new byte[1024];
 //                        FileInputStream fileInputStream = new FileInputStream(file);
 //                        int bytesRead = 0;
@@ -63,13 +63,11 @@ public class Client {
 //                            socket.send(filePacket);
 //                        }
 //                        System.out.println("File sent in " + packetCount + " packets.");
-//                    } catch (IOException e) {
-//                        e.printStackTrace();
-//                    }
-                    // send "Hello server" to server
-                    byte[] uploadBuffer = "upload".getBytes();
-                    DatagramPacket uploadPacket = new DatagramPacket(uploadBuffer, uploadBuffer.length, serverAddress, 9090);
-                    socket.send(uploadPacket);
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
+
+
                     break;
 
                 case "2":
