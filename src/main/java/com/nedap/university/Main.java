@@ -2,9 +2,11 @@ package com.nedap.university;
 
 import com.nedap.university.server.Server;
 
+import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
+import java.net.SocketException;
 
 public class Main {
 
@@ -13,7 +15,7 @@ public class Main {
 
     private Main() {}
 
-    public static void main(String[] args) {
+    public static void main(String[] args) throws IOException {
         System.out.println("Hello, Nedap University!");
 
         initShutdownHook();

@@ -1,5 +1,6 @@
 package com.nedap.university.client;
 
+import java.io.*;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
@@ -11,51 +12,92 @@ import java.util.Arrays;
 
 public class Client {
     public static void main(String[] args) {
-        try{
-            // Create a datagram socket on a randomly assigned available port
-            DatagramSocket clientSocket = new DatagramSocket(0);
-            //1024 is common practise
-            byte[] sendData = new byte[1024]; //store outgoing data (buffer)
-            byte[] receiveData = new byte[1024]; //store incoming data (buffer)
-            // Calculate the maximum amount of data that can be sent in a UDP datagram packet
-            // which is 65535 bytes minus 20 bytes for the IP header and 8 bytes for the UDP header
-            // This leaves a maximum data size of 65508 bytes
-
-            // Get the IP address of the server we want to send data to
+        try {
+            DatagramSocket socket = new DatagramSocket(); // client socket
+// Get the IP address of the server we want to send data to
             InetAddress serverAddress = InetAddress.getByName("172.16.1.1");
+            // send "Hello server" to server
+            byte[] helloBuffer = "Hello server".getBytes();
+            DatagramPacket helloPacket = new DatagramPacket(helloBuffer, helloBuffer.length, serverAddress, 9090);
+            socket.send(helloPacket);
 
-            // Create a string to send to the server
-            String stringSendData = "Hello Server";
+            // receive response from server
+            byte[] receiveBuffer = new byte[1024];
+            DatagramPacket receivePacket = new DatagramPacket(receiveBuffer, receiveBuffer.length);
+            socket.receive(receivePacket);
+            String response = new String(receivePacket.getData(), 0, receivePacket.getLength());
 
-            // Convert the string to bytes and store in the send data buffer
-            sendData = stringSendData.getBytes();
+            // display response and menu options to user
+            System.out.println(response);
+            System.out.print("Enter your choice: no. 1 or 2");
 
-            // Create a datagram packet with the send data buffer, length, server address, and port number
-            DatagramPacket sendPacket = new DatagramPacket(sendData, sendData.length, serverAddress,9090);
+            // read user choice from console
+            BufferedReader in = new BufferedReader(new InputStreamReader(System.in));
+            String choice = in.readLine();
 
-            // Send the datagram packet to the server
-            clientSocket.send(sendPacket);
+            switch (choice) {
+                case "1":
+                    try {
+                        // send upload request to server
+                        System.out.print("Enter file path: ");
+                        String filePath = in.readLine();
+                        File file = new File(filePath);
+                        if (!file.exists()) {
+                            System.out.println("File not found.");
+                            break;
+                        }
+                        String uploadMessage = "upload " + file.getName();
+                        byte[] uploadBuffer = uploadMessage.getBytes();
+                        DatagramPacket uploadPacket = new DatagramPacket(uploadBuffer, uploadBuffer.length, InetAddress.getLocalHost(), 12345);
+                        socket.send(uploadPacket);
 
-            // Create a datagram packet to receive data from the server
-            DatagramPacket receivePacket = new DatagramPacket(receiveData, receiveData.length);
+                        // read file from local file system and send to server in packets
+                        byte[] fileBuffer = new byte[1024];
+                        FileInputStream fileInputStream = new FileInputStream(file);
+                        int bytesRead = 0;
+                        int packetCount = 0;
+                        while ((bytesRead = fileInputStream.read(fileBuffer)) != -1) {
+                            packetCount++;
+                            DatagramPacket filePacket = new DatagramPacket(fileBuffer, bytesRead, InetAddress.getLocalHost(), 12345);
+                            socket.send(filePacket);
+                        }
+                        System.out.println("File sent in " + packetCount + " packets.");
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
+                    break;
 
-            // Wait for a datagram packet to be received from the server
-            clientSocket.receive(receivePacket);
+                case "2":
+                    // send download request to server
+                    System.out.print("Enter file name: ");
+                    System.out.print("format: download <filename> ");
+                    String downloadFileName = in.readLine();
+                    String downloadMessage = "download " + downloadFileName;
+                    byte[] downloadBuffer = downloadMessage.getBytes();
+                    DatagramPacket downloadPacket = new DatagramPacket(downloadBuffer, downloadBuffer.length, InetAddress.getLocalHost(), 12345);
+                    socket.send(downloadPacket);
 
-            // Get the data from the receive packet buffer
-            receiveData = receivePacket.getData();
-
-            // Convert the received data to a string
-            String stringReceivedData = new String(receiveData);
-
-            // Print the received data to the console
-            System.out.println("From server: " + stringReceivedData);
-
-            // Close the client socket
-            clientSocket.close();
-
-        }catch (Exception e){
-            System.out.println(e.toString());
+                    // receive file from server and save to local file system
+                    FileOutputStream fileOutputStream = new FileOutputStream(downloadFileName);
+                    byte[] packetBuffer = new byte[1024];
+                    DatagramPacket packet = new DatagramPacket(packetBuffer, packetBuffer.length);
+                    while (true) {
+                        socket.receive(packet);
+                        byte[] data = packet.getData();
+                        if (data[0] == 'd' && data[1] == 'o' && data[2] == 'n' && data[3] == 'e') {
+                            break;
+                        }
+                        fileOutputStream.write(data, 0, packet.getLength());
+                    }
+                    fileOutputStream.close();
+                    break;
+                default:
+                    System.out.println("Invalid choice");
+                    break;
+            }
+            socket.close();
+        } catch (Exception e) {
+            e.printStackTrace();
         }
     }
 }

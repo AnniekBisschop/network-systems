@@ -1,45 +1,79 @@
 package com.nedap.university.server;
 
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
 
 public class Server {
-    private DatagramSocket socket;
+
     private boolean keepAlive = true;
 
     public void start() {
         try {
-            // Create a new DatagramSocket object with port number 9090
-            socket = new DatagramSocket(9090);
-            // Create two byte arrays for storing incoming and outgoing data
-            byte[] sendData = new byte[1024]; //store outgoing data (buffer)
-            byte[] receiveData = new byte[1024]; //store incoming data (buffer)
+            DatagramSocket socket = new DatagramSocket(9090); // server socket listening on port 9090
 
-            // Loop to continuously receive and send data
-            while (keepAlive) {
-                // Create a DatagramPacket object to receive incoming data
-                DatagramPacket receivePacket = new DatagramPacket(receiveData, receiveData.length);
-                socket.receive(receivePacket); // Wait for incoming data
-                // Convert the received data to a string
-                String sentence = new String(receivePacket.getData());
-                // Print the received data to the console
-                System.out.println("Received from client: " + sentence);
-                // Prepare the data to be sent back to the client
-                String stringData = "Hello client, how are you doing today? Did you want to send anything?";
-                sendData = stringData.getBytes();
-                InetAddress clientIpAddress = receivePacket.getAddress();
-                int clientPort = receivePacket.getPort();
-                // Create a DatagramPacket object to send data back to the client
-                DatagramPacket sendPacket = new DatagramPacket(sendData, sendData.length, clientIpAddress, clientPort);
-                socket.send(sendPacket);
-                // Print the data to the console
-                System.out.println("Sent to client: " + stringData);
+            byte[] receiveBuffer = new byte[1024];
+            DatagramPacket receivePacket = new DatagramPacket(receiveBuffer, receiveBuffer.length);
 
-                Thread.sleep(1000);
+            while (true) {
+                // receive packet from client
+                socket.receive(receivePacket);
+                String message = new String(receivePacket.getData(), 0, receivePacket.getLength());
+                String[] messageArray = message.split(" ", 2);
+
+                switch (messageArray[0]) {
+                    case "Hello":
+                        System.out.println("Hello message received from " + receivePacket.getAddress());
+                        // send a response with available options
+                        String options = "What would you like to do?\n1. Upload\n2. Download";
+                        byte[] sendBuffer = options.getBytes();
+                        DatagramPacket sendPacket = new DatagramPacket(sendBuffer, sendBuffer.length, receivePacket.getAddress(), receivePacket.getPort());
+                        socket.send(sendPacket);
+                        break;
+                    case "upload":
+                        // receive file from client and store in a folder
+                        String fileName = messageArray[1];
+                        File file = new File(fileName);
+                        FileOutputStream fileOutputStream = new FileOutputStream(file);
+                        byte[] buffer = new byte[1024];
+                        DatagramPacket dataPacket = new DatagramPacket(buffer, buffer.length);
+                        while (true) {
+                            socket.receive(dataPacket);
+                            if (new String(dataPacket.getData(), 0, dataPacket.getLength()).equals("end")) {
+                                break;
+                            }
+                            fileOutputStream.write(dataPacket.getData(), 0, dataPacket.getLength());
+                        }
+                        fileOutputStream.close();
+                        // send a response to the client indicating the upload was successful
+                        String uploadResponse = "File uploaded successfully";
+                        byte[] responseBuffer = uploadResponse.getBytes();
+                        DatagramPacket responsePacket = new DatagramPacket(responseBuffer, responseBuffer.length, receivePacket.getAddress(), receivePacket.getPort());
+                        socket.send(responsePacket);
+                        break;
+                    case "download":
+                        // read file from a folder and send to the client in packets
+                        String downloadFileName = messageArray[1];
+                        File downloadFile = new File(downloadFileName);
+                        FileInputStream fileInputStream = new FileInputStream(downloadFile);
+                        buffer = new byte[1024];
+                        int bytesRead;
+                        while ((bytesRead = fileInputStream.read(buffer)) != -1) {
+                            DatagramPacket packet = new DatagramPacket(buffer, bytesRead, receivePacket.getAddress(), receivePacket.getPort());
+                            socket.send(packet);
+                        }
+                        fileInputStream.close();
+                        // send a response to the client indicating the download was successful
+                        String downloadResponse = "File downloaded successfully";
+                        responseBuffer = downloadResponse.getBytes();
+                        responsePacket = new DatagramPacket(responseBuffer, responseBuffer.length, receivePacket.getAddress(), receivePacket.getPort());
+                        socket.send(responsePacket);
+                        break;
+                }
             }
-
-            socket.close();
         } catch (Exception e) {
             e.printStackTrace();
         }
