@@ -53,16 +53,16 @@ public class Client {
                         socket.send(uploadPacket);
 
                         // read file from local file system and send to server in packets
-//                        byte[] fileBuffer = new byte[1024];
-//                        FileInputStream fileInputStream = new FileInputStream(file);
-//                        int bytesRead = 0;
-//                        int packetCount = 0;
-//                        while ((bytesRead = fileInputStream.read(fileBuffer)) != -1) {
-//                            packetCount++;
-//                            DatagramPacket filePacket = new DatagramPacket(fileBuffer, bytesRead, InetAddress.getLocalHost(), 12345);
-//                            socket.send(filePacket);
-//                        }
-//                        System.out.println("File sent in " + packetCount + " packets.");
+                        byte[] fileBuffer = new byte[1024];
+                        FileInputStream fileInputStream = new FileInputStream(file);
+                        int bytesRead = 0;
+                        int packetCount = 0;
+                        while ((bytesRead = fileInputStream.read(fileBuffer)) != -1) {
+                            packetCount++;
+                            DatagramPacket filePacket = new DatagramPacket(fileBuffer, bytesRead, serverAddress, 9090);
+                            socket.send(filePacket);
+                        }
+                        System.out.println("File sent in " + packetCount + " packets.");
                     } catch (IOException e) {
                         e.printStackTrace();
                     }
