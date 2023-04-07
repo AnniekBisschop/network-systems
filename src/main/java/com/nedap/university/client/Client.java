@@ -89,6 +89,24 @@ public class Client {
                         e.printStackTrace();
                     }
                     break;
+                case "2":
+                    try {
+                        // send list request to server
+                        String listMessage = "list";
+                        byte[] listBuffer = listMessage.getBytes();
+                        DatagramPacket listPacket = new DatagramPacket(listBuffer, listBuffer.length, serverAddress, 9090);
+                        socket.send(listPacket);
+
+                        // receive list from server
+                        byte[] listBufferResponse = new byte[1024];
+                        DatagramPacket listPacketResponse = new DatagramPacket(listBufferResponse, listBufferResponse.length);
+                        socket.receive(listPacketResponse);
+                        String responseList = new String(listPacketResponse.getData(), 0, listPacketResponse.getLength());
+                        System.out.println("List of files on server:\n" + responseList);
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
+                    break;
                 default:
                     System.out.println("Invalid choice");
                     break;

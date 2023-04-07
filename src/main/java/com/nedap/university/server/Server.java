@@ -3,6 +3,7 @@ package com.nedap.university.server;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
+import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
@@ -34,7 +35,7 @@ public class Server {
                         System.out.println("Hello message received from " + receivePacket.getAddress());
 
                         // send a response with available options
-                        String options = "What would you like to do?\n1. Upload\n2. Download";
+                        String options = "What would you like to do?\n1. Upload\n2. List available files";
                         byte[] sendBuffer = options.getBytes();
                         DatagramPacket sendPacket = new DatagramPacket(sendBuffer, sendBuffer.length, receivePacket.getAddress(), receivePacket.getPort());
                         socket.send(sendPacket);
@@ -97,7 +98,8 @@ public class Server {
                         socket.send(responsePacket);
                         break;
                     case "list":
-                        System.out.println("show list");
+                        listAllFilesOnServer(socket, receivePacket);
+                        break;
                 }
             }
         } catch (Exception e) {
@@ -105,6 +107,24 @@ public class Server {
         }
 
         System.out.println("Stopped");
+    }
+
+    private static void listAllFilesOnServer(DatagramSocket socket, DatagramPacket receivePacket) throws IOException {
+        // Create a new File object representing the directory we want to list
+        File directory = new File("/home/pi/data");
+
+        // Get a list of files in the directory as an array of strings
+        String[] fileList = directory.list();
+
+        if (fileList != null) {
+            System.out.println("Listing files on server");
+            // Concatenate all the filenames into a single string with newline characters separating them
+            String fileString = String.join("\n", fileList);
+
+            byte[] fileBytes = fileString.getBytes();
+            DatagramPacket filePacket = new DatagramPacket(fileBytes, fileBytes.length, receivePacket.getAddress(), receivePacket.getPort());
+            socket.send(filePacket);
+        }
     }
 
     public void stop() {
