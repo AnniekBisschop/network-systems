@@ -93,9 +93,9 @@ public class Client {
             DatagramPacket responsePacket = new DatagramPacket(responseBuffer, responseBuffer.length);
             socket.receive(responsePacket);
             String responseRemove = new String(responsePacket.getData(), 0, responsePacket.getLength());
-            if (responseRemove.equals("File removed successfully")) {
+            if (responseRemove.contains("File removed successfully")) {
                 System.out.println("File removed successfully");
-            } else if (responseRemove.equals("File not found")) {
+            } else if (responseRemove.contains("File not found")) {
                 System.out.println("File not found on server.");
             } else {
                 System.err.println("Received unexpected response from server: " + responseRemove);
@@ -145,9 +145,9 @@ public class Client {
             DatagramPacket responsePacket = new DatagramPacket(responseBuffer, responseBuffer.length);
             socket.receive(responsePacket);
             String responseUpload = new String(responsePacket.getData(), 0, responsePacket.getLength());
-            if (responseUpload.equals("Ready to receive file")) {
+            if (responseUpload.contains("Ready to receive file")) {
                 System.out.println("Server is ready to receive file.");
-            } else if (responseUpload.equals("File already exists")) {
+            } else if (responseUpload.contains("File already exists")) {
                 System.out.println("File already exists on server.");
                 return;
             } else {
@@ -171,6 +171,17 @@ public class Client {
             byte[] endBuffer = endMessage.getBytes();
             DatagramPacket endPacket = new DatagramPacket(endBuffer, endBuffer.length, serverAddress, 9090);
             socket.send(endPacket);
+
+            // receive response from server indicating file upload success
+            byte[] successBuffer = new byte[1024];
+            DatagramPacket successPacket = new DatagramPacket(successBuffer, successBuffer.length);
+            socket.receive(successPacket);
+            String successResponse = new String(successPacket.getData(), 0, successPacket.getLength());
+            if (successResponse.contains("File uploaded successfully")) {
+                System.out.println("File uploaded successfully.");
+            } else {
+                System.err.println("Received unexpected response from server: " + successResponse);
+            }
 
             System.out.println("File sent in " + packetCount + " packets.");
         } catch (IOException e) {
