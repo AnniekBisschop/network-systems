@@ -7,6 +7,7 @@ import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
+import java.util.Arrays;
 
 public class Server {
 
@@ -41,104 +42,16 @@ public class Server {
                         socket.send(sendPacket);
                         break;
                     case "upload":
-                        if (messageArray.length < 2) {
-                            // log an error and send an error response to the client
-                            System.err.println("Received invalid upload request from client " + receivePacket.getAddress() + ":" + receivePacket.getPort());
-                            String errorResponse = "Invalid upload request";
-                            byte[] responseBuffer = errorResponse.getBytes();
-                            DatagramPacket responsePacket = new DatagramPacket(responseBuffer, responseBuffer.length, receivePacket.getAddress(), receivePacket.getPort());
-                            socket.send(responsePacket);
-                            break;
-                        }
-
-                        // log that the upload request has been received
-                        System.out.println("Received upload request from client " + receivePacket.getAddress() + ":" + receivePacket.getPort());
-                        System.out.println(messageArray[1]);
-
-                        // receive file from client and store in a folder
-                        String fileName = messageArray[1];
-                        File file = new File("/home/pi/data/" + fileName);
-                        if (file.exists()) {
-                            // send a response to the client indicating that the file already exists
-                            String errorResponse = "File already exists";
-                            byte[] responseBuffer = errorResponse.getBytes();
-                            DatagramPacket responsePacket = new DatagramPacket(responseBuffer, responseBuffer.length, receivePacket.getAddress(), receivePacket.getPort());
-                            socket.send(responsePacket);
-                        } else {
-                            // send a response to the client indicating that the server is ready to receive the file
-                            String uploadResponse = "Ready to receive file";
-                            byte[] responseBuffer = uploadResponse.getBytes();
-                            DatagramPacket responsePacket = new DatagramPacket(responseBuffer, responseBuffer.length, receivePacket.getAddress(), receivePacket.getPort());
-                            socket.send(responsePacket);
-                        }
-
-
-                        FileOutputStream fileOutputStream = new FileOutputStream(file);
-                        // create a buffer to hold incoming data packets and a new DatagramPacket to receive data packets from the socket
-                        byte[] buffer = new byte[1024];
-                        DatagramPacket dataPacket = new DatagramPacket(buffer, buffer.length);
-                        while (true) {
-                            socket.receive(dataPacket);
-
-                            // if the data packet contains the end of file marker, break out of the loop
-                            if (new String(dataPacket.getData(), 0, dataPacket.getLength()).equals("end")) {
-                                break;
-                            }
-
-                            // write the entire contents of the data packet to the output file starting
-                            // from the beginning of the byte array.
-                            fileOutputStream.write(dataPacket.getData(), 0, dataPacket.getLength());
-                        }
-                        fileOutputStream.close();
-
-                        // send a response to the client indicating the upload was successful
-                        String uploadResponse = "File uploaded successfully";
-                        byte[] responseBuffer = uploadResponse.getBytes();
-                        DatagramPacket responsePacket = new DatagramPacket(responseBuffer, responseBuffer.length, receivePacket.getAddress(), receivePacket.getPort());
-                        socket.send(responsePacket);
+                        uploadFileToServer(socket, receivePacket, messageArray);
+                        break;
+                    case "download":
+                        downloadFromServer(socket, receivePacket, messageArray);
                         break;
                     case "list":
                         listAllFilesOnServer(socket, receivePacket);
                         break;
                     case "remove":
-                        if (messageArray.length < 2) {
-                            // log an error and send an error response to the client
-                            System.err.println("Received invalid remove request from client " + receivePacket.getAddress() + ":" + receivePacket.getPort());
-                            String errorResponse = "Invalid remove request";
-                            responseBuffer = errorResponse.getBytes();
-                            responsePacket = new DatagramPacket(responseBuffer, responseBuffer.length, receivePacket.getAddress(), receivePacket.getPort());
-                            socket.send(responsePacket);
-                            break;
-                        }
-
-                        // log that the remove request has been received
-                        System.out.println("Received remove request from client " + receivePacket.getAddress() + ":" + receivePacket.getPort());
-                        System.out.println(messageArray[1]);
-
-                        // remove file from server
-                        String fileNameToRemove = messageArray[1];
-                        File fileToRemove = new File("/home/pi/data/" + fileNameToRemove);
-                        if (fileToRemove.exists()) {
-                            if (fileToRemove.delete()) {
-                                // send a response to the client indicating the remove was successful
-                                String removeResponse = "File removed successfully";
-                                responseBuffer = removeResponse.getBytes();
-                                responsePacket = new DatagramPacket(responseBuffer, responseBuffer.length, receivePacket.getAddress(), receivePacket.getPort());
-                                socket.send(responsePacket);
-                            } else {
-                                // send a response to the client indicating the remove failed
-                                String errorResponse = "Failed to remove file";
-                                responseBuffer = errorResponse.getBytes();
-                                responsePacket = new DatagramPacket(responseBuffer, responseBuffer.length, receivePacket.getAddress(), receivePacket.getPort());
-                                socket.send(responsePacket);
-                            }
-                        } else {
-                            // send a response to the client indicating the file does not exist
-                            String errorResponse = "File does not exist";
-                            responseBuffer = errorResponse.getBytes();
-                            responsePacket = new DatagramPacket(responseBuffer, responseBuffer.length, receivePacket.getAddress(), receivePacket.getPort());
-                            socket.send(responsePacket);
-                        }
+                        removeFileOnServer(socket, receivePacket, messageArray);
                         break;
                 }
             }
@@ -147,6 +60,177 @@ public class Server {
         }
 
         System.out.println("Stopped");
+    }
+
+    private static void uploadFileToServer(DatagramSocket socket, DatagramPacket receivePacket, String[] messageArray) throws IOException {
+        if (messageArray.length < 2) {
+            // log an error and send an error response to the client
+            System.err.println("Received invalid upload request from client " + receivePacket.getAddress() + ":" + receivePacket.getPort());
+            String errorResponse = "Invalid upload request";
+            byte[] responseBuffer = errorResponse.getBytes();
+            DatagramPacket responsePacket = new DatagramPacket(responseBuffer, responseBuffer.length, receivePacket.getAddress(), receivePacket.getPort());
+            socket.send(responsePacket);
+            return;
+        }
+
+        // log that the upload request has been received
+        System.out.println("Received upload request from client " + receivePacket.getAddress() + ":" + receivePacket.getPort());
+        System.out.println(messageArray[1]);
+
+        // receive file from client and store in a folder
+        String fileName = messageArray[1];
+        File file = new File("/home/pi/data/" + fileName);
+        if (file.exists()) {
+            // send a response to the client indicating that the file already exists
+            String errorResponse = "File already exists";
+            byte[] responseBuffer = errorResponse.getBytes();
+            DatagramPacket responsePacket = new DatagramPacket(responseBuffer, responseBuffer.length, receivePacket.getAddress(), receivePacket.getPort());
+            socket.send(responsePacket);
+        } else {
+            // send a response to the client indicating that the server is ready to receive the file
+            String uploadResponse = "Ready to receive file";
+            byte[] responseBuffer = uploadResponse.getBytes();
+            DatagramPacket responsePacket = new DatagramPacket(responseBuffer, responseBuffer.length, receivePacket.getAddress(), receivePacket.getPort());
+            socket.send(responsePacket);
+        }
+
+
+        FileOutputStream fileOutputStream = new FileOutputStream(file);
+        // create a buffer to hold incoming data packets and a new DatagramPacket to receive data packets from the socket
+        byte[] buffer = new byte[1024];
+        DatagramPacket dataPacket = new DatagramPacket(buffer, buffer.length);
+        while (true) {
+            socket.receive(dataPacket);
+
+            // if the data packet contains the end of file marker, break out of the loop
+            if (new String(dataPacket.getData(), 0, dataPacket.getLength()).equals("end")) {
+                break;
+            }
+
+            // write the entire contents of the data packet to the output file starting
+            // from the beginning of the byte array.
+            fileOutputStream.write(dataPacket.getData(), 0, dataPacket.getLength());
+            fileOutputStream.flush();
+        }
+        fileOutputStream.close();
+
+        // send a response to the client indicating the upload was successful
+        String uploadResponse = "File uploaded successfully";
+        byte[] responseBuffer = uploadResponse.getBytes();
+        DatagramPacket responsePacket = new DatagramPacket(responseBuffer, responseBuffer.length, receivePacket.getAddress(), receivePacket.getPort());
+        socket.send(responsePacket);
+    }
+    private static void downloadFromServer(DatagramSocket socket, DatagramPacket receivePacket, String[] messageArray) throws IOException {
+        if (messageArray.length < 2) {
+            // log an error and send an error response to the client
+            System.err.println("Received invalid download request from client " + receivePacket.getAddress() + ":" + receivePacket.getPort());
+            String errorResponse = "Invalid download request";
+            byte[] responseBuffer = errorResponse.getBytes();
+            DatagramPacket responsePacket = new DatagramPacket(responseBuffer, responseBuffer.length, receivePacket.getAddress(), receivePacket.getPort());
+            socket.send(responsePacket);
+            return;
+        }
+
+        // log that the download request has been received
+        System.out.println("Received download request from client " + receivePacket.getAddress() + ":" + receivePacket.getPort());
+        String fileName = messageArray[1];
+        File file = new File("/home/pi/data/" + fileName);
+
+        if (!file.exists()) {
+            // send a response to the client indicating that the file does not exist
+            String errorResponse = "File does not exist";
+            byte[] responseBuffer = errorResponse.getBytes();
+            DatagramPacket responsePacket = new DatagramPacket(responseBuffer, responseBuffer.length, receivePacket.getAddress(), receivePacket.getPort());
+            socket.send(responsePacket);
+        } else {
+            // send a response to the client indicating that the server is ready to send the file
+            String uploadResponse = "Ready to send file " + fileName;
+            System.out.println("ready to send file " + fileName);
+            byte[] responseBuffer = uploadResponse.getBytes();
+            DatagramPacket responsePacket = new DatagramPacket(responseBuffer, responseBuffer.length, receivePacket.getAddress(), receivePacket.getPort());
+            socket.send(responsePacket);
+
+            // open the file and read it in chunks of 1024 bytes
+            FileInputStream fileInputStream = new FileInputStream(file);
+            byte[] fileBuffer = new byte[1024];
+            int bytesRead;
+            while ((bytesRead = fileInputStream.read(fileBuffer)) > 0) {
+                byte[] chunkBuffer = Arrays.copyOfRange(fileBuffer, 0, bytesRead);
+                DatagramPacket filePacket = new DatagramPacket(chunkBuffer, bytesRead, receivePacket.getAddress(), receivePacket.getPort());
+                socket.send(filePacket);
+            }
+
+// send a response to the client indicating that the file has been sent
+            String uploadResponse2 = "File sent successfully";
+            System.out.println("File sent successfully");
+            byte[] responseBuffer2 = uploadResponse2.getBytes();
+            DatagramPacket responsePacket2 = new DatagramPacket(responseBuffer2, responseBuffer2.length, receivePacket.getAddress(), receivePacket.getPort());
+            socket.send(responsePacket2);
+
+            fileInputStream.close();
+        }
+    }
+    private static void removeFileOnServer(DatagramSocket socket, DatagramPacket receivePacket, String[] messageArray) throws IOException {
+        DatagramPacket responsePacket;
+        byte[] responseBuffer;
+        if (messageArray.length < 2) {
+            // log an error and send an error response to the client
+            System.err.println("Received invalid remove request from client " + receivePacket.getAddress() + ":" + receivePacket.getPort());
+            String errorResponse = "Invalid remove request";
+            responseBuffer = errorResponse.getBytes();
+            responsePacket = new DatagramPacket(responseBuffer, responseBuffer.length, receivePacket.getAddress(), receivePacket.getPort());
+            socket.send(responsePacket);
+            return;
+        }
+
+        // log that the remove request has been received
+        System.out.println("Received remove request from client " + receivePacket.getAddress() + ":" + receivePacket.getPort());
+        System.out.println(messageArray[1]);
+
+        // remove file from server
+        String fileNameToRemove = messageArray[1];
+        File fileToRemove = new File("home/pi/data", fileNameToRemove);
+        if (fileToRemove.exists()) {
+            FileInputStream fileInputStream = null;
+            try {
+                fileInputStream = new FileInputStream(fileToRemove);
+                fileInputStream.close();
+                if (fileToRemove.delete()) {
+                    // send a response to the client indicating the remove was successful
+                    String removeResponse = "File removed successfully";
+                    responseBuffer = removeResponse.getBytes();
+                    responsePacket = new DatagramPacket(responseBuffer, responseBuffer.length, receivePacket.getAddress(), receivePacket.getPort());
+                    socket.send(responsePacket);
+                } else {
+                    // send a response to the client indicating the remove failed
+                    String errorResponse = "Failed to remove file";
+                    responseBuffer = errorResponse.getBytes();
+                    responsePacket = new DatagramPacket(responseBuffer, responseBuffer.length, receivePacket.getAddress(), receivePacket.getPort());
+                    socket.send(responsePacket);
+                }
+            } catch (IOException e) {
+                // send a response to the client indicating the remove failed due to an IO error
+                String errorResponse = "Failed to remove file due to IO error";
+                responseBuffer = errorResponse.getBytes();
+                responsePacket = new DatagramPacket(responseBuffer, responseBuffer.length, receivePacket.getAddress(), receivePacket.getPort());
+                socket.send(responsePacket);
+            } finally {
+                try {
+                    if (fileInputStream != null) {
+                        fileInputStream.close();
+                    }
+                } catch (IOException e) {
+                    // log the error but don't send a response to the client
+                    System.err.println("Failed to close file input stream: " + e.getMessage());
+                }
+            }
+        } else {
+            // send a response to the client indicating the file does not exist
+            String errorResponse = "File does not exist";
+            responseBuffer = errorResponse.getBytes();
+            responsePacket = new DatagramPacket(responseBuffer, responseBuffer.length, receivePacket.getAddress(), receivePacket.getPort());
+            socket.send(responsePacket);
+        }
     }
 
     private static void listAllFilesOnServer(DatagramSocket socket, DatagramPacket receivePacket) throws IOException {
