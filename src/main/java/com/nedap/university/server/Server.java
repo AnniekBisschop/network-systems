@@ -47,11 +47,17 @@ public class Server {
                     case "download":
                         downloadFromServer(socket, receivePacket, messageArray);
                         break;
+                    case "remove":
+                        removeFileOnServer(socket, receivePacket, messageArray);
+                        break;
+                    case "replace":
+                        replaceFileOnServer(socket, receivePacket, messageArray);
+                        break;
                     case "list":
                         listAllFilesOnServer(socket, receivePacket);
                         break;
-                    case "remove":
-                        removeFileOnServer(socket, receivePacket, messageArray);
+                    default:
+                        System.out.println("Something went wrong..");
                         break;
                 }
             }
@@ -231,6 +237,63 @@ public class Server {
             responsePacket = new DatagramPacket(responseBuffer, responseBuffer.length, receivePacket.getAddress(), receivePacket.getPort());
             socket.send(responsePacket);
         }
+    }
+
+    private static void replaceFileOnServer(DatagramSocket socket, DatagramPacket receivePacket, String[] messageArray) throws IOException {
+        if (messageArray.length < 2) {
+            // log an error and send an error response to the client
+            System.err.println("Received invalid replace request from client " + receivePacket.getAddress() + ":" + receivePacket.getPort());
+            String errorResponse = "Invalid replace request";
+            byte[] responseBuffer = errorResponse.getBytes();
+            DatagramPacket responsePacket = new DatagramPacket(responseBuffer, responseBuffer.length, receivePacket.getAddress(), receivePacket.getPort());
+            socket.send(responsePacket);
+            return;
+        }
+
+        // log that the replace request has been received
+        System.out.println("Received replace request from client " + receivePacket.getAddress() + ":" + receivePacket.getPort());
+        String fileName = messageArray[1];
+        File file = new File("/home/pi/data/" + fileName);
+
+        if (!file.exists()) {
+            // send a response to the client indicating that the file does not exist
+            String errorResponse = "File does not exist";
+            byte[] responseBuffer = errorResponse.getBytes();
+            DatagramPacket responsePacket = new DatagramPacket(responseBuffer, responseBuffer.length, receivePacket.getAddress(), receivePacket.getPort());
+            socket.send(responsePacket);
+            return;
+        }
+
+        // send a response to the client indicating that the server is ready to receive the new file contents
+        String replaceResponse = "Ready to receive new file contents";
+        byte[] responseBuffer = replaceResponse.getBytes();
+        DatagramPacket responsePacket = new DatagramPacket(responseBuffer, responseBuffer.length, receivePacket.getAddress(), receivePacket.getPort());
+        socket.send(responsePacket);
+
+        // receive new file contents from the client and replace the contents of the existing file
+        FileOutputStream fileOutputStream = new FileOutputStream(file);
+        byte[] buffer = new byte[1024];
+        DatagramPacket dataPacket = new DatagramPacket(buffer, buffer.length);
+        while (true) {
+            socket.receive(dataPacket);
+
+            // if the data packet contains the end of file marker, break out of the loop
+            if (new String(dataPacket.getData(), 0, dataPacket.getLength()).equals("end")) {
+                break;
+            }
+
+            // write the entire contents of the data packet to the output file starting
+            // from the beginning of the byte array.
+            fileOutputStream.write(dataPacket.getData(), 0, dataPacket.getLength());
+            fileOutputStream.flush();
+        }
+        fileOutputStream.close();
+
+        // send a response to the client indicating the replace was successful
+        String replaceSuccess = "File replaced successfully";
+        byte[] successBuffer = replaceSuccess.getBytes();
+        DatagramPacket successPacket = new DatagramPacket(successBuffer, successBuffer.length, receivePacket.getAddress(), receivePacket.getPort());
+        socket.send(successPacket);
     }
 
     private static void listAllFilesOnServer(DatagramSocket socket, DatagramPacket receivePacket) throws IOException {

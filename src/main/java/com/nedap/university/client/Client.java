@@ -46,18 +46,21 @@ public class Client {
                         uploadFile(socket, serverAddress, in);
                         break;
                     case "2":
-                        showList(socket, serverAddress);
+                        downloadFile(socket, serverAddress, in);
                         break;
                     case "3":
                         removeFile(socket, serverAddress, in);
                         break;
                     case "4":
-                        System.out.println("Exiting program...");
-                        // Add any additional cleanup or exit code here, if necessary.
-                        System.exit(0);
+                        replaceFile(socket, serverAddress, in);
                         break;
                     case "5":
-                        downloadFile(socket, serverAddress, in);
+                        showList(socket, serverAddress);
+                        break;
+                    case "6":
+                        System.out.println("Exiting program...");
+                        // TODO: MORE CODE FOR EXITING PROGRAM?
+                        System.exit(0);
                         break;
                     default:
                         System.out.println("Invalid choice");
@@ -76,54 +79,6 @@ public class Client {
             }
         }
     }
-
-    private static void removeFile(DatagramSocket socket, InetAddress serverAddress, BufferedReader in) {
-        try {
-            // send remove request to server
-            System.out.print("Enter name of file you want to remove: ");
-            String fileName = in.readLine();
-            String removeMessage = "remove " + fileName;
-
-            byte[] removeBuffer = removeMessage.getBytes();
-            DatagramPacket removePacket = new DatagramPacket(removeBuffer, removeBuffer.length, serverAddress, 9090);
-            socket.send(removePacket);
-
-            // receive response from server
-            byte[] responseBuffer = new byte[1024];
-            DatagramPacket responsePacket = new DatagramPacket(responseBuffer, responseBuffer.length);
-            socket.receive(responsePacket);
-            String responseRemove = new String(responsePacket.getData(), 0, responsePacket.getLength());
-            if (responseRemove.contains("File removed successfully")) {
-                System.out.println("File removed successfully");
-            } else if (responseRemove.contains("File not found")) {
-                System.out.println("File not found on server.");
-            } else {
-                System.err.println("Received unexpected response from server: " + responseRemove);
-            }
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-    }
-
-    private static void showList(DatagramSocket socket, InetAddress serverAddress) {
-        try {
-            // send list request to server
-            String listMessage = "list";
-            byte[] listBuffer = listMessage.getBytes();
-            DatagramPacket listPacket = new DatagramPacket(listBuffer, listBuffer.length, serverAddress, 9090);
-            socket.send(listPacket);
-
-            // receive list from server
-            byte[] listBufferResponse = new byte[1024];
-            DatagramPacket listPacketResponse = new DatagramPacket(listBufferResponse, listBufferResponse.length);
-            socket.receive(listPacketResponse);
-            String responseList = new String(listPacketResponse.getData(), 0, listPacketResponse.getLength());
-            System.out.println("List of files on server:\n" + responseList);
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-    }
-
     private static void uploadFile(DatagramSocket socket, InetAddress serverAddress, BufferedReader in) {
         try {
             // send upload request to server
@@ -203,7 +158,7 @@ public class Client {
             DatagramPacket responsePacket = new DatagramPacket(responseBuffer, responseBuffer.length);
             socket.receive(responsePacket);
             String responseDownload = new String(responsePacket.getData(), 0, responsePacket.getLength());
-            System.out.println("responseDownload" + responseDownload);
+            System.out.println("responseDownload: " + responseDownload);
             if (responseDownload.contains("File not found")) {
                 System.out.println("File not found on server.");
                 return;
@@ -238,6 +193,7 @@ public class Client {
                 System.out.println("Packetcount: " + packetCount);
                 fileOutputStream.write(filePacket.getData(), 0, filePacket.getLength());
                 System.out.println("File received in " + packetCount + " packets and saved to " + filePath + ".");
+                break;
             }
             fileOutputStream.close();
 
@@ -246,12 +202,127 @@ public class Client {
         }
     }
 
+    private static void removeFile(DatagramSocket socket, InetAddress serverAddress, BufferedReader in) {
+        try {
+            // send remove request to server
+            System.out.print("Enter name of file you want to remove: ");
+            String fileName = in.readLine();
+            String removeMessage = "remove " + fileName;
+
+            byte[] removeBuffer = removeMessage.getBytes();
+            DatagramPacket removePacket = new DatagramPacket(removeBuffer, removeBuffer.length, serverAddress, 9090);
+            socket.send(removePacket);
+
+            // receive response from server
+            byte[] responseBuffer = new byte[1024];
+            DatagramPacket responsePacket = new DatagramPacket(responseBuffer, responseBuffer.length);
+            socket.receive(responsePacket);
+            String responseRemove = new String(responsePacket.getData(), 0, responsePacket.getLength());
+            if (responseRemove.contains("File removed successfully")) {
+                System.out.println("File removed successfully");
+            } else if (responseRemove.contains("File not found")) {
+                System.out.println("File not found on server.");
+            } else {
+                System.err.println("Received unexpected response from server: " + responseRemove);
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+    private static void replaceFile(DatagramSocket socket, InetAddress serverAddress, BufferedReader in) {
+        try {
+            // send replace request to server
+            System.out.print("Enter name of file you want to replace: ");
+            String fileName = in.readLine();
+            String replaceMessage = "replace " + fileName;
+            byte[] replaceBuffer = replaceMessage.getBytes();
+            DatagramPacket replacePacket = new DatagramPacket(replaceBuffer, replaceBuffer.length, serverAddress, 9090);
+            socket.send(replacePacket);
+
+            // receive response from server
+            byte[] responseBuffer = new byte[1024];
+            DatagramPacket responsePacket = new DatagramPacket(responseBuffer, responseBuffer.length);
+            socket.receive(responsePacket);
+            String responseReplace = new String(responsePacket.getData(), 0, responsePacket.getLength());
+            if (responseReplace.contains("File not found")) {
+                System.out.println("File not found on server.");
+                return;
+            } else if (responseReplace.contains("Ready to receive")) {
+                System.out.println("upload function??");
+            } else {
+                System.err.println("Received unexpected response from server: " + responseReplace);
+                return;
+            }
+
+            // read file from local file system and send to server in packets
+            System.out.print("Enter path to new file: ");
+            String filePath = in.readLine();
+            File file = new File(filePath);
+            if (!file.exists()) {
+                System.out.println("File not found.");
+                return;
+            }
+
+            byte[] fileBuffer = new byte[1024];
+            FileInputStream fileInputStream = new FileInputStream(file);
+            int bytesRead = 0;
+            int packetCount = 0;
+            while ((bytesRead = fileInputStream.read(fileBuffer)) != -1) {
+                packetCount++;
+                DatagramPacket filePacket = new DatagramPacket(fileBuffer, bytesRead, serverAddress, 9090);
+                socket.send(filePacket);
+            }
+
+            // send end of file marker to server
+            String endMessage = "end";
+            byte[] endBuffer = endMessage.getBytes();
+            DatagramPacket endPacket = new DatagramPacket(endBuffer, endBuffer.length, serverAddress, 9090);
+            socket.send(endPacket);
+
+            // receive response from server indicating file replacement success
+            byte[] successBuffer = new byte[1024];
+            DatagramPacket successPacket = new DatagramPacket(successBuffer, successBuffer.length);
+            socket.receive(successPacket);
+            String successResponse = new String(successPacket.getData(), 0, successPacket.getLength());
+            if (successResponse.contains("File replaced successfully")) {
+                System.out.println("File replaced successfully.");
+            } else {
+                System.err.println("Received unexpected response from server: " + successResponse);
+            }
+
+            System.out.println("File sent in " + packetCount + " packets.");
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private static void showList(DatagramSocket socket, InetAddress serverAddress) {
+        try {
+            // send list request to server
+            String listMessage = "list";
+            byte[] listBuffer = listMessage.getBytes();
+            DatagramPacket listPacket = new DatagramPacket(listBuffer, listBuffer.length, serverAddress, 9090);
+            socket.send(listPacket);
+
+            // receive list from server
+            byte[] listBufferResponse = new byte[1024];
+            DatagramPacket listPacketResponse = new DatagramPacket(listBufferResponse, listBufferResponse.length);
+            socket.receive(listPacketResponse);
+            String responseList = new String(listPacketResponse.getData(), 0, listPacketResponse.getLength());
+            System.out.println("List of files on server:\n" + responseList);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
     public static void printMenu(){
         System.out.println("\nMenu Options:");
         System.out.println("1. Upload a file");
-        System.out.println("2. Show list of files");
+        System.out.println("2. Download a file");
         System.out.println("3. Remove a file");
-        System.out.println("4. Exit");
-        System.out.println("5. Download a file");
+        System.out.println("4. Replace a file");
+        System.out.println("5. List available files");
+        System.out.println("6. Exit");
+        System.out.println("Please choose an option 1-6");
     }
 }
