@@ -29,7 +29,7 @@ public class Client {
 
             // display response and menu options to user
             System.out.println(response);
-            System.out.print("Enter your choice: no. 1 or 2\n");
+            System.out.print("Enter your choice: no. 1 , 2 , 3\n");
 
             // read user choice from console
             BufferedReader in = new BufferedReader(new InputStreamReader(System.in));
@@ -103,6 +103,33 @@ public class Client {
                         socket.receive(listPacketResponse);
                         String responseList = new String(listPacketResponse.getData(), 0, listPacketResponse.getLength());
                         System.out.println("List of files on server:\n" + responseList);
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
+                    break;
+                case "3":
+                    try {
+                        // send remove request to server
+                        System.out.print("Enter name of file you want to remove: ");
+                        String fileName = in.readLine();
+                        String removeMessage = "remove " + fileName;
+
+                        byte[] removeBuffer = removeMessage.getBytes();
+                        DatagramPacket removePacket = new DatagramPacket(removeBuffer, removeBuffer.length, serverAddress, 9090);
+                        socket.send(removePacket);
+
+                        // receive response from server
+                        byte[] responseBuffer = new byte[1024];
+                        DatagramPacket responsePacket = new DatagramPacket(responseBuffer, responseBuffer.length);
+                        socket.receive(responsePacket);
+                        String responseRemove = new String(responsePacket.getData(), 0, responsePacket.getLength());
+                        if (responseRemove.equals("File removed successfully")) {
+                            System.out.println("File removed successfully");
+                        } else if (responseRemove.equals("File not found")) {
+                            System.out.println("File not found on server.");
+                        } else {
+                            System.err.println("Received unexpected response from server: " + responseRemove);
+                        }
                     } catch (IOException e) {
                         e.printStackTrace();
                     }

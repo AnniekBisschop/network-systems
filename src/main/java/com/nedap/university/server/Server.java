@@ -100,6 +100,46 @@ public class Server {
                     case "list":
                         listAllFilesOnServer(socket, receivePacket);
                         break;
+                    case "remove":
+                        if (messageArray.length < 2) {
+                            // log an error and send an error response to the client
+                            System.err.println("Received invalid remove request from client " + receivePacket.getAddress() + ":" + receivePacket.getPort());
+                            String errorResponse = "Invalid remove request";
+                            responseBuffer = errorResponse.getBytes();
+                            responsePacket = new DatagramPacket(responseBuffer, responseBuffer.length, receivePacket.getAddress(), receivePacket.getPort());
+                            socket.send(responsePacket);
+                            break;
+                        }
+
+                        // log that the remove request has been received
+                        System.out.println("Received remove request from client " + receivePacket.getAddress() + ":" + receivePacket.getPort());
+                        System.out.println(messageArray[1]);
+
+                        // remove file from server
+                        String fileNameToRemove = messageArray[1];
+                        File fileToRemove = new File("/home/pi/data/" + fileNameToRemove);
+                        if (fileToRemove.exists()) {
+                            if (fileToRemove.delete()) {
+                                // send a response to the client indicating the remove was successful
+                                String removeResponse = "File removed successfully";
+                                responseBuffer = removeResponse.getBytes();
+                                responsePacket = new DatagramPacket(responseBuffer, responseBuffer.length, receivePacket.getAddress(), receivePacket.getPort());
+                                socket.send(responsePacket);
+                            } else {
+                                // send a response to the client indicating the remove failed
+                                String errorResponse = "Failed to remove file";
+                                responseBuffer = errorResponse.getBytes();
+                                responsePacket = new DatagramPacket(responseBuffer, responseBuffer.length, receivePacket.getAddress(), receivePacket.getPort());
+                                socket.send(responsePacket);
+                            }
+                        } else {
+                            // send a response to the client indicating the file does not exist
+                            String errorResponse = "File does not exist";
+                            responseBuffer = errorResponse.getBytes();
+                            responsePacket = new DatagramPacket(responseBuffer, responseBuffer.length, receivePacket.getAddress(), receivePacket.getPort());
+                            socket.send(responsePacket);
+                        }
+                        break;
                 }
             }
         } catch (Exception e) {
