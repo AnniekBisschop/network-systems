@@ -11,6 +11,8 @@ import java.util.Arrays;
 * */
 
 public class Client {
+
+    private static final int PORT = 9090;
     public static void main(String[] args) {
         DatagramSocket socket = null;
         try {
@@ -21,7 +23,7 @@ public class Client {
 
             // send "Hello server" to server
             byte[] helloBuffer = "Hello server".getBytes();
-            DatagramPacket helloPacket = new DatagramPacket(helloBuffer, helloBuffer.length, serverAddress, 9090);
+            DatagramPacket helloPacket = new DatagramPacket(helloBuffer, helloBuffer.length, serverAddress, PORT);
             socket.send(helloPacket);
 
             // receive response from server
@@ -92,7 +94,7 @@ public class Client {
             String uploadMessage = "upload " + file.getName();
 
             byte[] uploadBuffer = uploadMessage.getBytes();
-            DatagramPacket uploadPacket = new DatagramPacket(uploadBuffer, uploadBuffer.length, serverAddress, 9090);
+            DatagramPacket uploadPacket = new DatagramPacket(uploadBuffer, uploadBuffer.length, serverAddress, PORT);
             socket.send(uploadPacket);
 
             // receive response from server
@@ -117,14 +119,14 @@ public class Client {
             int packetCount = 0;
             while ((bytesRead = fileInputStream.read(fileBuffer)) != -1) {
                 packetCount++;
-                DatagramPacket filePacket = new DatagramPacket(fileBuffer, bytesRead, serverAddress, 9090);
+                DatagramPacket filePacket = new DatagramPacket(fileBuffer, bytesRead, serverAddress, PORT);
                 socket.send(filePacket);
             }
 
             // send end of file marker to server
             String endMessage = "end";
             byte[] endBuffer = endMessage.getBytes();
-            DatagramPacket endPacket = new DatagramPacket(endBuffer, endBuffer.length, serverAddress, 9090);
+            DatagramPacket endPacket = new DatagramPacket(endBuffer, endBuffer.length, serverAddress, PORT);
             socket.send(endPacket);
 
             // receive response from server indicating file upload success
@@ -150,7 +152,7 @@ public class Client {
             System.out.print("Enter name of file you want to download: ");
             String downloadMessage = "download " + in.readLine();
             byte[] downloadBuffer = downloadMessage.getBytes();
-            DatagramPacket downloadPacket = new DatagramPacket(downloadBuffer, downloadBuffer.length, serverAddress, 9090);
+            DatagramPacket downloadPacket = new DatagramPacket(downloadBuffer, downloadBuffer.length, serverAddress, PORT);
             socket.send(downloadPacket);
 
             // receive response from server
@@ -210,7 +212,7 @@ public class Client {
             String removeMessage = "remove " + fileName;
 
             byte[] removeBuffer = removeMessage.getBytes();
-            DatagramPacket removePacket = new DatagramPacket(removeBuffer, removeBuffer.length, serverAddress, 9090);
+            DatagramPacket removePacket = new DatagramPacket(removeBuffer, removeBuffer.length, serverAddress, PORT);
             socket.send(removePacket);
 
             // receive response from server
@@ -236,7 +238,7 @@ public class Client {
             String fileName = in.readLine();
             String replaceMessage = "replace " + fileName;
             byte[] replaceBuffer = replaceMessage.getBytes();
-            DatagramPacket replacePacket = new DatagramPacket(replaceBuffer, replaceBuffer.length, serverAddress, 9090);
+            DatagramPacket replacePacket = new DatagramPacket(replaceBuffer, replaceBuffer.length, serverAddress, PORT);
             socket.send(replacePacket);
 
             // receive response from server
@@ -269,14 +271,14 @@ public class Client {
             int packetCount = 0;
             while ((bytesRead = fileInputStream.read(fileBuffer)) != -1) {
                 packetCount++;
-                DatagramPacket filePacket = new DatagramPacket(fileBuffer, bytesRead, serverAddress, 9090);
+                DatagramPacket filePacket = new DatagramPacket(fileBuffer, bytesRead, serverAddress, PORT);
                 socket.send(filePacket);
             }
 
             // send end of file marker to server
             String endMessage = "end";
             byte[] endBuffer = endMessage.getBytes();
-            DatagramPacket endPacket = new DatagramPacket(endBuffer, endBuffer.length, serverAddress, 9090);
+            DatagramPacket endPacket = new DatagramPacket(endBuffer, endBuffer.length, serverAddress, PORT);
             socket.send(endPacket);
 
             // receive response from server indicating file replacement success
@@ -301,7 +303,7 @@ public class Client {
             // send list request to server
             String listMessage = "list";
             byte[] listBuffer = listMessage.getBytes();
-            DatagramPacket listPacket = new DatagramPacket(listBuffer, listBuffer.length, serverAddress, 9090);
+            DatagramPacket listPacket = new DatagramPacket(listBuffer, listBuffer.length, serverAddress, PORT);
             socket.send(listPacket);
 
             // receive list from server
