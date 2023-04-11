@@ -110,6 +110,8 @@ public class Server {
 // initialize sequence number and expected sequence number
         int sequenceNumber = 0;
         int expectedSequenceNumber = 0;
+        int numSeqThreeReceived = 0; // counter for number of times sequence number 3 is received
+
         List<Integer> sequenceNumbers = new ArrayList<>();
         while (true) {
             // receive a data packet
@@ -123,16 +125,44 @@ public class Server {
             // extract the sequence number from the header of the packet
             sequenceNumber = Integer.parseInt(new String(dataPacket.getData(), 0, dataPacket.getLength()));
             sequenceNumbers.add(sequenceNumber);
+//            // check if the sequence number is the expected value
+//            if (sequenceNumber == expectedSequenceNumber) {
+//                // send an ack to the client with the sequence number in the header
+//                byte[] ackData = String.valueOf(sequenceNumber).getBytes();
+//                DatagramPacket ackPacket = new DatagramPacket(ackData, ackData.length, receivePacket.getAddress(), receivePacket.getPort());
+//                socket.send(ackPacket);
+//                System.out.println("Ack sent to client");
+//                // increment the expected sequence number
+//                expectedSequenceNumber++;
+//            }
+            //FIXME: test ack not received
+
             // check if the sequence number is the expected value
             if (sequenceNumber == expectedSequenceNumber) {
                 // send an ack to the client with the sequence number in the header
-                byte[] ackData = String.valueOf(sequenceNumber).getBytes();
-                DatagramPacket ackPacket = new DatagramPacket(ackData, ackData.length, receivePacket.getAddress(), receivePacket.getPort());
-                socket.send(ackPacket);
-                System.out.println("Ack sent to client");
+                if (sequenceNumber == 3) { // if sequence number is 3, only send ACK on the third occurrence
+                    numSeqThreeReceived++;
+                    System.out.println("new packet with 3 received");
+                    if (numSeqThreeReceived == 3) {
+                        byte[] ackData = String.valueOf(sequenceNumber).getBytes();
+                        DatagramPacket ackPacket = new DatagramPacket(ackData, ackData.length, receivePacket.getAddress(), receivePacket.getPort());
+                        socket.send(ackPacket);
+                        System.out.println("Ack sent to client");
+                        numSeqThreeReceived = 0; // reset counter after sending ACK
+                    } else {
+                        System.out.println("Received sequence number 3, but no ACK will be sent.");
+                    }
+                } else { // for all other sequence numbers, send ACK as usual
+                    byte[] ackData = String.valueOf(sequenceNumber).getBytes();
+                    DatagramPacket ackPacket = new DatagramPacket(ackData, ackData.length, receivePacket.getAddress(), receivePacket.getPort());
+                    socket.send(ackPacket);
+                    System.out.println("Ack sent to client");
+                }
                 // increment the expected sequence number
                 expectedSequenceNumber++;
             }
+                // increment the expected sequence number
+
 
             // write the entire contents of the data packet to the output file starting
             // from the beginning of the byte array.

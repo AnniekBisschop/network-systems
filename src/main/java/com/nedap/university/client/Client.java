@@ -82,7 +82,7 @@ public class Client {
             }
         }
     }
-    private static void uploadFile(DatagramSocket socket, InetAddress serverAddress, BufferedReader in) {
+    private static void uploadFile(DatagramSocket socket, InetAddress serverAddress, BufferedReader in) throws IOException {
         try {
             // send upload request to server
             System.out.print("Enter path to file you want to upload: ");
@@ -113,7 +113,7 @@ public class Client {
                 return;
             }
 
-            // read file from local file system and send to server in packets
+// read file from local file system and send to server in packets
             byte[] fileBuffer = new byte[1024];
             FileInputStream fileInputStream = new FileInputStream(file);
             int bytesRead;
@@ -132,15 +132,20 @@ public class Client {
                 // set the sequence number in the header of the packet
                 packet.setData(String.valueOf(sequenceNumber).getBytes());
 
+                int MAX_RETRIES = 3; // maximum number of retries
+                int retryCount = 0; // retry counter
                 boolean ackReceived = false;
-                while (!ackReceived) {
+
+                while (!ackReceived && retryCount < MAX_RETRIES) {
                     // send the packet
                     socket.send(packet);
 
                     // wait for an ACK from the server
                     byte[] ackBuffer = new byte[1024];
                     DatagramPacket ackPacket = new DatagramPacket(ackBuffer, ackBuffer.length);
+
                     try {
+                        socket.setSoTimeout(5000); // timeout 5 sec for retransmitting
                         socket.receive(ackPacket);
 
                         // extract the sequence number from the ACK packet
@@ -152,12 +157,18 @@ public class Client {
                             System.out.println("seq num: " + sequenceNumber);
                             System.out.println("ack received " + ackReceived);
                             sequenceNumber++; // increment sequence number
-
                         }
                     } catch (SocketTimeoutException e) {
-                        // if the ACK isn't received within a certain time, resend the packet
-                        System.out.println("Timeout waiting for ACK. Resending packet...");
+                        retryCount++; // increment retry counter
+                        System.out.println("Timeout waiting for ACK. Retrying packet...");
+                        socket.send(packet); // resend the current packet
+                    } catch (IOException e) {
+                        throw new RuntimeException(e);
                     }
+                }
+
+                if (!ackReceived && retryCount == MAX_RETRIES) {
+                    System.out.println("Max number of retries reached. Giving up on packet...");
                 }
             }
 
