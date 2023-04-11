@@ -166,12 +166,12 @@ public class Server {
                 socket.send(filePacket);
             }
 
-// send a response to the client indicating that the file has been sent
-            String uploadResponse2 = "File sent successfully";
             System.out.println("File sent successfully");
-            byte[] responseBuffer2 = uploadResponse2.getBytes();
-            DatagramPacket responsePacket2 = new DatagramPacket(responseBuffer2, responseBuffer2.length, receivePacket.getAddress(), receivePacket.getPort());
-            socket.send(responsePacket2);
+
+            // send "end" message to client
+            byte[] endBuffer = "end".getBytes();
+            DatagramPacket endPacket = new DatagramPacket(endBuffer, endBuffer.length, receivePacket.getAddress(), receivePacket.getPort());
+            socket.send(endPacket);
 
             fileInputStream.close();
         }

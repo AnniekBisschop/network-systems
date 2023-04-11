@@ -152,7 +152,7 @@ public class Client {
             System.out.print("Enter name of file you want to download: ");
             String downloadMessage = "download " + in.readLine();
             byte[] downloadBuffer = downloadMessage.getBytes();
-            DatagramPacket downloadPacket = new DatagramPacket(downloadBuffer, downloadBuffer.length, serverAddress, PORT);
+            DatagramPacket downloadPacket = new DatagramPacket(downloadBuffer, downloadBuffer.length, serverAddress, 9090);
             socket.send(downloadPacket);
 
             // receive response from server
@@ -160,7 +160,7 @@ public class Client {
             DatagramPacket responsePacket = new DatagramPacket(responseBuffer, responseBuffer.length);
             socket.receive(responsePacket);
             String responseDownload = new String(responsePacket.getData(), 0, responsePacket.getLength());
-            System.out.println("responseDownload: " + responseDownload);
+            System.out.println("responseDownload" + responseDownload);
             if (responseDownload.contains("File not found")) {
                 System.out.println("File not found on server.");
                 return;
@@ -189,13 +189,13 @@ public class Client {
                 String packetData = new String(filePacket.getData(), 0, filePacket.getLength());
                 if (packetData.equals("end")) {
                     System.out.println("received end packet");
+                    System.out.println("file sent successfully");
                     break;
                 }
                 packetCount++;
                 System.out.println("Packetcount: " + packetCount);
                 fileOutputStream.write(filePacket.getData(), 0, filePacket.getLength());
                 System.out.println("File received in " + packetCount + " packets and saved to " + filePath + ".");
-                break;
             }
             fileOutputStream.close();
 
@@ -203,6 +203,7 @@ public class Client {
             e.printStackTrace();
         }
     }
+
 
     private static void removeFile(DatagramSocket socket, InetAddress serverAddress, BufferedReader in) {
         try {
