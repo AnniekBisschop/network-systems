@@ -7,7 +7,9 @@ import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 
 public class Server {
 
@@ -25,7 +27,6 @@ public class Server {
             while (true) {
                 // receive a packet from a client
                 socket.receive(receivePacket);
-
                 // extract the data from the packet and split it into an array of strings
                 String message = new String(receivePacket.getData(), 0, receivePacket.getLength());
                 String[] messageArray = message.split(" ");
@@ -105,6 +106,8 @@ public class Server {
         // create a buffer to hold incoming data packets and a new DatagramPacket to receive data packets from the socket
         byte[] buffer = new byte[1024];
         DatagramPacket dataPacket = new DatagramPacket(buffer, buffer.length);
+
+        List<Integer> sequenceNumbers = new ArrayList<>();
         while (true) {
             socket.receive(dataPacket);
 
@@ -113,13 +116,20 @@ public class Server {
                 break;
             }
 
+            // extract the sequence number from the header of the packet
+            int sequenceNumber = Integer.parseInt(new String(dataPacket.getData(), 0, dataPacket.getLength()));
+            sequenceNumbers.add(sequenceNumber); // add the sequence number to the list
+
             // write the entire contents of the data packet to the output file starting
             // from the beginning of the byte array.
             fileOutputStream.write(dataPacket.getData(), 0, dataPacket.getLength());
             fileOutputStream.flush();
         }
         fileOutputStream.close();
-
+        System.out.println("Sequence numbers:");
+        for (int sequenceNumber : sequenceNumbers) {
+            System.out.println("Sequence number:" + sequenceNumber);
+        }
         // send a response to the client indicating the upload was successful
         String uploadResponse = "File uploaded successfully";
         byte[] responseBuffer = uploadResponse.getBytes();

@@ -35,6 +35,7 @@ public class Client {
             // display response and menu options to user
             System.out.println(response);
 
+
             // read user choice from console
             BufferedReader in = new BufferedReader(new InputStreamReader(System.in));
 
@@ -61,7 +62,6 @@ public class Client {
                         break;
                     case "6":
                         System.out.println("Exiting program...");
-                        // TODO: MORE CODE FOR EXITING PROGRAM?
                         System.exit(0);
                         break;
                     default:
@@ -117,10 +117,19 @@ public class Client {
             FileInputStream fileInputStream = new FileInputStream(file);
             int bytesRead = 0;
             int packetCount = 0;
+            int sequenceNumber = 0; // initialize sequence number
             while ((bytesRead = fileInputStream.read(fileBuffer)) != -1) {
                 packetCount++;
-                DatagramPacket filePacket = new DatagramPacket(fileBuffer, bytesRead, serverAddress, PORT);
-                socket.send(filePacket);
+                // append sequence number to message
+                String message = new String(fileBuffer, 0, bytesRead);
+                byte[] messageBuffer = message.getBytes();
+                // create a DatagramPacket with the buffer, the length of the data, and the destination address and port
+                DatagramPacket packet = new DatagramPacket(messageBuffer, messageBuffer.length, serverAddress, PORT);
+                // set the sequence number in the header of the packet
+                packet.setData(String.valueOf(sequenceNumber).getBytes());
+                // send the packet
+                socket.send(packet);
+                sequenceNumber++; // increment sequence number
             }
 
             // send end of file marker to server
@@ -128,6 +137,7 @@ public class Client {
             byte[] endBuffer = endMessage.getBytes();
             DatagramPacket endPacket = new DatagramPacket(endBuffer, endBuffer.length, serverAddress, PORT);
             socket.send(endPacket);
+
 
             // receive response from server indicating file upload success
             byte[] successBuffer = new byte[1024];
