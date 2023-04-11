@@ -4,6 +4,7 @@ import java.io.*;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
+import java.net.SocketTimeoutException;
 import java.util.Arrays;
 
 /*
@@ -115,21 +116,49 @@ public class Client {
             // read file from local file system and send to server in packets
             byte[] fileBuffer = new byte[1024];
             FileInputStream fileInputStream = new FileInputStream(file);
-            int bytesRead = 0;
+            int bytesRead;
             int packetCount = 0;
             int sequenceNumber = 0; // initialize sequence number
+
             while ((bytesRead = fileInputStream.read(fileBuffer)) != -1) {
                 packetCount++;
                 // append sequence number to message
                 String message = new String(fileBuffer, 0, bytesRead);
                 byte[] messageBuffer = message.getBytes();
+
                 // create a DatagramPacket with the buffer, the length of the data, and the destination address and port
                 DatagramPacket packet = new DatagramPacket(messageBuffer, messageBuffer.length, serverAddress, PORT);
+
                 // set the sequence number in the header of the packet
                 packet.setData(String.valueOf(sequenceNumber).getBytes());
-                // send the packet
-                socket.send(packet);
-                sequenceNumber++; // increment sequence number
+
+                boolean ackReceived = false;
+                while (!ackReceived) {
+                    // send the packet
+                    socket.send(packet);
+
+                    // wait for an ACK from the server
+                    byte[] ackBuffer = new byte[1024];
+                    DatagramPacket ackPacket = new DatagramPacket(ackBuffer, ackBuffer.length);
+                    try {
+                        socket.receive(ackPacket);
+
+                        // extract the sequence number from the ACK packet
+                        int ackSequenceNumber = Integer.parseInt(new String(ackPacket.getData(), 0, ackPacket.getLength()));
+
+                        // check if the ACK sequence number matches the packet sequence number
+                        if (ackSequenceNumber == sequenceNumber) {
+                            ackReceived = true;
+                            System.out.println("seq num: " + sequenceNumber);
+                            System.out.println("ack received " + ackReceived);
+                            sequenceNumber++; // increment sequence number
+
+                        }
+                    } catch (SocketTimeoutException e) {
+                        // if the ACK isn't received within a certain time, resend the packet
+                        System.out.println("Timeout waiting for ACK. Resending packet...");
+                    }
+                }
             }
 
             // send end of file marker to server

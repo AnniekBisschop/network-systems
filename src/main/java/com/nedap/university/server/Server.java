@@ -107,8 +107,12 @@ public class Server {
         byte[] buffer = new byte[1024];
         DatagramPacket dataPacket = new DatagramPacket(buffer, buffer.length);
 
+// initialize sequence number and expected sequence number
+        int sequenceNumber = 0;
+        int expectedSequenceNumber = 0;
         List<Integer> sequenceNumbers = new ArrayList<>();
         while (true) {
+            // receive a data packet
             socket.receive(dataPacket);
 
             // if the data packet contains the end of file marker, break out of the loop
@@ -117,8 +121,18 @@ public class Server {
             }
 
             // extract the sequence number from the header of the packet
-            int sequenceNumber = Integer.parseInt(new String(dataPacket.getData(), 0, dataPacket.getLength()));
-            sequenceNumbers.add(sequenceNumber); // add the sequence number to the list
+            sequenceNumber = Integer.parseInt(new String(dataPacket.getData(), 0, dataPacket.getLength()));
+            sequenceNumbers.add(sequenceNumber);
+            // check if the sequence number is the expected value
+            if (sequenceNumber == expectedSequenceNumber) {
+                // send an ack to the client with the sequence number in the header
+                byte[] ackData = String.valueOf(sequenceNumber).getBytes();
+                DatagramPacket ackPacket = new DatagramPacket(ackData, ackData.length, receivePacket.getAddress(), receivePacket.getPort());
+                socket.send(ackPacket);
+                System.out.println("Ack sent to client");
+                // increment the expected sequence number
+                expectedSequenceNumber++;
+            }
 
             // write the entire contents of the data packet to the output file starting
             // from the beginning of the byte array.
@@ -127,8 +141,8 @@ public class Server {
         }
         fileOutputStream.close();
         System.out.println("Sequence numbers:");
-        for (int sequenceNumber : sequenceNumbers) {
-            System.out.println("Sequence number:" + sequenceNumber);
+        for (int seqNum : sequenceNumbers) {
+            System.out.println("Sequence number:" + seqNum);
         }
         // send a response to the client indicating the upload was successful
         String uploadResponse = "File uploaded successfully";
