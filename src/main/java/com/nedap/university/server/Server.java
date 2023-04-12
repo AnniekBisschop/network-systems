@@ -13,6 +13,10 @@ import java.util.List;
 
 public class Server {
 
+    private static final int BUFFER_SIZE = 1024;
+    private static final int HEADER_SIZE = 8; // 4 bytes for seq, 4 bytes for ack
+    private static final byte[] ACK = {0, 1};
+
     private boolean keepAlive = true;
 
     public void start() {
@@ -21,16 +25,39 @@ public class Server {
             DatagramSocket socket = new DatagramSocket(9090);
 
             // create a buffer to receive packets
-            byte[] receiveBuffer = new byte[1024];
+            byte[] receiveBuffer = new byte[BUFFER_SIZE + HEADER_SIZE];
             DatagramPacket receivePacket = new DatagramPacket(receiveBuffer, receiveBuffer.length);
 
             while (true) {
                 // receive a packet from a client
                 socket.receive(receivePacket);
-                // extract the data from the packet and split it into an array of strings
-                String message = new String(receivePacket.getData(), 0, receivePacket.getLength());
-                String[] messageArray = message.split(" ");
 
+                byte[] receivedData = receivePacket.getData();
+                System.out.println("Received data: " + Arrays.toString(receivedData));
+                // Extract the sequence number from the packet header
+                int seqNum = (receivedData[0] << 24) & 0xFF000000 |
+                        (receivedData[1] << 16) & 0x00FF0000 |
+                        (receivedData[2] << 8) & 0x0000FF00 |
+                        (receivedData[3] << 0) & 0x000000FF;
+                System.out.println("Seq num " + seqNum);
+                // Extract the acknowledgement number from the packet header
+                int ackNum = (receivedData[4] << 24) & 0xFF000000 |
+                        (receivedData[5] << 16) & 0x00FF0000 |
+                        (receivedData[6] << 8) & 0x0000FF00 |
+                        (receivedData[7] << 0) & 0x000000FF;
+
+                // Send an acknowledgement for the received sequence number
+                byte[] header = createHeader(seqNum, seqNum + 1);
+                DatagramPacket ackPacket = new DatagramPacket(header, header.length, receivePacket.getSocketAddress());
+                socket.send(ackPacket);
+                System.out.println("ackPacket send" + ackPacket);
+                // extract the data from the packet and split it into an array of strings
+                byte[] data = new byte[receivePacket.getLength() - HEADER_SIZE];
+                System.arraycopy(receivedData, HEADER_SIZE, data, 0, data.length);
+                String message = new String(data);
+                String[] messageArray = message.split(" ");
+                System.out.println("message for switch: " + message);
+                System.out.println("Wordt er nu een keer hallo ontvangen om de verbinding op te zetten?");
                 // perform different actions based on the first string in the array
                 switch (messageArray[0]) {
                     case "Hello":
@@ -39,23 +66,28 @@ public class Server {
                         // send a response with available options
                         String options = "What would you like to do?\n1. Upload\n2. List available files";
                         byte[] sendBuffer = options.getBytes();
-                        DatagramPacket sendPacket = new DatagramPacket(sendBuffer, sendBuffer.length, receivePacket.getAddress(), receivePacket.getPort());
+                        header = createHeader(seqNum + 1, seqNum);
+                        byte[] sendData = new byte[sendBuffer.length + HEADER_SIZE];
+                        System.arraycopy(header, 0, sendData, 0, HEADER_SIZE);
+                        System.arraycopy(sendBuffer, 0, sendData, HEADER_SIZE, sendBuffer.length);
+                        DatagramPacket sendPacket = new DatagramPacket(sendData, sendData.length, receivePacket.getAddress(), receivePacket.getPort());
                         socket.send(sendPacket);
+                        System.out.println("menu options send");
                         break;
                     case "upload":
-                        uploadFileToServer(socket, receivePacket, messageArray);
+                        uploadFileToServer(socket, receivePacket, messageArray, seqNum);
                         break;
                     case "download":
-                        downloadFromServer(socket, receivePacket, messageArray);
+                        downloadFromServer(socket, receivePacket, messageArray, seqNum);
                         break;
                     case "remove":
-                        removeFileOnServer(socket, receivePacket, messageArray);
+                        removeFileOnServer(socket, receivePacket, messageArray, seqNum);
                         break;
                     case "replace":
-                        replaceFileOnServer(socket, receivePacket, messageArray);
+                        replaceFileOnServer(socket, receivePacket, messageArray, seqNum);
                         break;
                     case "list":
-                        listAllFilesOnServer(socket, receivePacket);
+                        listAllFilesOnServer(socket, receivePacket, seqNum);
                         break;
                     default:
                         System.out.println("Something went wrong..");
@@ -69,7 +101,30 @@ public class Server {
         System.out.println("Stopped");
     }
 
-    private static void uploadFileToServer(DatagramSocket socket, DatagramPacket receivePacket, String[] messageArray) throws IOException {
+    /**
+     * This method takes in two integer parameters, seqNum and ackNum, and returns a byte array of size HEADER_SIZE,
+     * which is a constant set to 8.
+     * Create a header for a packet that includes the sequence number and acknowledgement number,
+     * which are both 4 bytes long.
+     * */
+    private byte[] createHeader(int seqNum, int ackNum) {
+        //The first line of the method creates a new byte array called header with a length of HEADER_SIZE.
+        byte[] header = new byte[HEADER_SIZE];
+        //set the first four bytes of the header array to the four bytes of the seqNum parameter, extract each byte.
+        header[0] = (byte) ((seqNum >> 24) & 0xFF);
+        header[1] = (byte) ((seqNum >> 16) & 0xFF);
+        header[2] = (byte) ((seqNum >> 8) & 0xFF);
+        header[3] = (byte) ((seqNum) & 0xFF);
+        //set the next three bytes of the header array to the three bytes of the ackNum parameter
+        header[4] = (byte) ((ackNum >> 24) & 0xFF);
+        header[5] = (byte) ((ackNum >> 16) & 0xFF);
+        header[6] = (byte) ((ackNum >> 8) & 0xFF);
+        header[7] = (byte) ((ackNum) & 0xFF);
+        return header;
+    }
+
+
+    private static void uploadFileToServer(DatagramSocket socket, DatagramPacket receivePacket, String[] messageArray, int seqNum) throws IOException {
         if (messageArray.length < 2) {
             // log an error and send an error response to the client
             System.err.println("Received invalid upload request from client " + receivePacket.getAddress() + ":" + receivePacket.getPort());
@@ -125,43 +180,17 @@ public class Server {
             // extract the sequence number from the header of the packet
             sequenceNumber = Integer.parseInt(new String(dataPacket.getData(), 0, dataPacket.getLength()));
             sequenceNumbers.add(sequenceNumber);
-//            // check if the sequence number is the expected value
-//            if (sequenceNumber == expectedSequenceNumber) {
-//                // send an ack to the client with the sequence number in the header
-//                byte[] ackData = String.valueOf(sequenceNumber).getBytes();
-//                DatagramPacket ackPacket = new DatagramPacket(ackData, ackData.length, receivePacket.getAddress(), receivePacket.getPort());
-//                socket.send(ackPacket);
-//                System.out.println("Ack sent to client");
-//                // increment the expected sequence number
-//                expectedSequenceNumber++;
-//            }
-            //FIXME: test ack not received
-
-            // check if the sequence number is the expected value
+           // check if the sequence number is the expected value
             if (sequenceNumber == expectedSequenceNumber) {
                 // send an ack to the client with the sequence number in the header
-                if (sequenceNumber == 3) { // if sequence number is 3, only send ACK on the third occurrence
-                    numSeqThreeReceived++;
-                    System.out.println("new packet with 3 received");
-                    if (numSeqThreeReceived == 3) {
-                        byte[] ackData = String.valueOf(sequenceNumber).getBytes();
-                        DatagramPacket ackPacket = new DatagramPacket(ackData, ackData.length, receivePacket.getAddress(), receivePacket.getPort());
-                        socket.send(ackPacket);
-                        System.out.println("Ack sent to client");
-                        numSeqThreeReceived = 0; // reset counter after sending ACK
-                    } else {
-                        System.out.println("Received sequence number 3, but no ACK will be sent.");
-                    }
-                } else { // for all other sequence numbers, send ACK as usual
-                    byte[] ackData = String.valueOf(sequenceNumber).getBytes();
-                    DatagramPacket ackPacket = new DatagramPacket(ackData, ackData.length, receivePacket.getAddress(), receivePacket.getPort());
-                    socket.send(ackPacket);
-                    System.out.println("Ack sent to client");
-                }
+                byte[] ackData = String.valueOf(sequenceNumber).getBytes();
+                DatagramPacket ackPacket = new DatagramPacket(ackData, ackData.length, receivePacket.getAddress(), receivePacket.getPort());
+                socket.send(ackPacket);
+                System.out.println("Ack sent to client");
                 // increment the expected sequence number
                 expectedSequenceNumber++;
             }
-                // increment the expected sequence number
+
 
 
             // write the entire contents of the data packet to the output file starting
@@ -171,16 +200,16 @@ public class Server {
         }
         fileOutputStream.close();
         System.out.println("Sequence numbers:");
-        for (int seqNum : sequenceNumbers) {
-            System.out.println("Sequence number:" + seqNum);
-        }
+//        for (int seqNum : sequenceNumbers) {
+//            System.out.println("Sequence number:" + seqNum);
+//        }
         // send a response to the client indicating the upload was successful
         String uploadResponse = "File uploaded successfully";
         byte[] responseBuffer = uploadResponse.getBytes();
         DatagramPacket responsePacket = new DatagramPacket(responseBuffer, responseBuffer.length, receivePacket.getAddress(), receivePacket.getPort());
         socket.send(responsePacket);
     }
-    private static void downloadFromServer(DatagramSocket socket, DatagramPacket receivePacket, String[] messageArray) throws IOException {
+    private static void downloadFromServer(DatagramSocket socket, DatagramPacket receivePacket, String[] messageArray, int seqNum) throws IOException {
         if (messageArray.length < 2) {
             // log an error and send an error response to the client
             System.err.println("Received invalid download request from client " + receivePacket.getAddress() + ":" + receivePacket.getPort());
@@ -230,7 +259,7 @@ public class Server {
             fileInputStream.close();
         }
     }
-    private static void removeFileOnServer(DatagramSocket socket, DatagramPacket receivePacket, String[] messageArray) throws IOException {
+    private static void removeFileOnServer(DatagramSocket socket, DatagramPacket receivePacket, String[] messageArray, int seqNum) throws IOException {
         DatagramPacket responsePacket;
         byte[] responseBuffer;
         if (messageArray.length < 2) {
@@ -293,7 +322,7 @@ public class Server {
         }
     }
 
-    private static void replaceFileOnServer(DatagramSocket socket, DatagramPacket receivePacket, String[] messageArray) throws IOException {
+    private static void replaceFileOnServer(DatagramSocket socket, DatagramPacket receivePacket, String[] messageArray, int seqNum) throws IOException {
         if (messageArray.length < 2) {
             // log an error and send an error response to the client
             System.err.println("Received invalid replace request from client " + receivePacket.getAddress() + ":" + receivePacket.getPort());
@@ -350,7 +379,7 @@ public class Server {
         socket.send(successPacket);
     }
 
-    private static void listAllFilesOnServer(DatagramSocket socket, DatagramPacket receivePacket) throws IOException {
+    private static void listAllFilesOnServer(DatagramSocket socket, DatagramPacket receivePacket, int seqNum) throws IOException {
         // Create a new File object representing the directory we want to list
         File directory = new File("/home/pi/data");
 
