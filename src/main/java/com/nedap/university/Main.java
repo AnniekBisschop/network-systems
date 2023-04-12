@@ -16,7 +16,7 @@ public class Main {
     private Main() {}
 
     public static void main(String[] args) throws IOException {
-        System.out.println("Hello, Nedap University!");
+        System.out.println("Hello, starting server!");
 
         initShutdownHook();
 

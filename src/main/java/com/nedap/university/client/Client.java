@@ -4,6 +4,7 @@ import java.io.*;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
+import java.net.SocketTimeoutException;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
 
@@ -24,51 +25,63 @@ public class Client {
             // Get the IP address of the server we want to send data to
             InetAddress serverAddress = InetAddress.getByName("172.16.1.1");
 
-            sendHelloPacketToServer(socket, serverAddress);
+            boolean ackReceived = false;
+            int maxTries = 3; // set maximum number of tries to send the hello packet
+            int tries = 0; // initialize the number of tries
 
-            // receive acknowledgement from server
-            byte[] receiveBuffer = new byte[HEADER_SIZE];
+            while (!ackReceived && tries < maxTries) {
+                try {
+                    sendHelloPacketToServer(socket, serverAddress);
+                    if (tries > 0) {
+                        System.out.println("Hello packet retransmitted...");
+                    }
+                    // set timeout for receiving acknowledgment from server
+                    socket.setSoTimeout(5000); // 2 seconds
+
+                    // receive acknowledgement from server
+                    byte[] receiveBuffer = new byte[HEADER_SIZE];
+                    DatagramPacket receivePacket = new DatagramPacket(receiveBuffer, receiveBuffer.length);
+                    socket.receive(receivePacket);
+                    System.out.println("acknowledgement from server received: " + receivePacket);
+                    int seqNum = getSeqNum(receivePacket.getData());
+                    int ackNum = getAckNum(receivePacket.getData());
+                    System.out.println("seqnum" + seqNum);
+                    System.out.println("acknum" + ackNum);
+                    ackReceived = true;
+                } catch (SocketTimeoutException e) {
+                    System.out.println("Acknowledgement not received, trying again...");
+                    tries++;
+                    if(tries == maxTries){
+                        System.out.println("Please try to make a new connection to the server. Program stopped: " +e.getMessage());
+                    }
+                } catch (IOException e) {
+                    System.out.println("Please try to make a new connection to the server. Program stopped.");
+                    System.out.println("IOException occurred while communicating with server: " + e.getMessage());
+                    System.exit(1);
+                }
+            }
+
+            // receive response from server
+            byte[] receiveBuffer = new byte[1024 + HEADER_SIZE];
             DatagramPacket receivePacket = new DatagramPacket(receiveBuffer, receiveBuffer.length);
             socket.receive(receivePacket);
-            System.out.println("acknowledgement from server received: " + receivePacket);
+            System.out.println("response from server received: " + receivePacket);
             int seqNum = getSeqNum(receivePacket.getData());
             int ackNum = getAckNum(receivePacket.getData());
             System.out.println("seqnum" + seqNum);
             System.out.println("acknum" + ackNum);
 
-            // receive response from server
-            receiveBuffer = new byte[1024 + HEADER_SIZE];
-            receivePacket = new DatagramPacket(receiveBuffer, receiveBuffer.length);
-            socket.receive(receivePacket);
-            System.out.println("response from server received: " + receivePacket);
-            seqNum = getSeqNum(receivePacket.getData());
-            ackNum = getAckNum(receivePacket.getData());
-            System.out.println("seqnum" + seqNum);
-            System.out.println("acknum" + ackNum);
-
             // extract the data from the packet and convert it to a string
-            byte[] data = Arrays.copyOfRange(receivePacket.getData(), HEADER_SIZE, receivePacket.getLength());
+            byte[] data = new byte[receivePacket.getLength() - HEADER_SIZE];
+            System.arraycopy(receivePacket.getData(), HEADER_SIZE, data, 0, data.length);
             String message = new String(data);
-            System.out.println("message from server:" + message);
+            System.out.println(message);
 
-
-//            // receive menu from server
-//            byte[] messageBuffer = new byte[receivePacket.getLength() - HEADER_SIZE];
-//            System.arraycopy(receivePacket.getData(), HEADER_SIZE, messageBuffer, 0, messageBuffer.length);
-//            String message = new String(messageBuffer);
-//            System.out.println("message from server:" + message);
-
-
-//            // display response and menu options to user
-//            byte[] responseBuffer = new byte[receivePacket.getLength() - HEADER_SIZE];
-//            System.arraycopy(receivePacket.getData(), HEADER_SIZE, responseBuffer, 0, responseBuffer.length);
-//            String response = new String(responseBuffer);
-//            System.out.println(response);
 
             // read user choice from console
             BufferedReader in = new BufferedReader(new InputStreamReader(System.in));
 
-//            printMenu(); // Call the printMenu() method before the while loop.
+            printMenu(); // Call the printMenu() method before the while loop.
 
             while (true) {
                 String choice = in.readLine();

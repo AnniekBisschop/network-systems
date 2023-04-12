@@ -33,7 +33,7 @@ public class Server {
                 socket.receive(receivePacket);
 
                 byte[] receivedData = receivePacket.getData();
-                System.out.println("Received data: " + Arrays.toString(receivedData));
+
                 // Extract the sequence number from the packet header
                 int seqNum = (receivedData[0] << 24) & 0xFF000000 |
                         (receivedData[1] << 16) & 0x00FF0000 |
@@ -57,14 +57,13 @@ public class Server {
                 String message = new String(data);
                 String[] messageArray = message.split(" ");
                 System.out.println("message for switch: " + message);
-                System.out.println("Wordt er nu een keer hallo ontvangen om de verbinding op te zetten?");
                 // perform different actions based on the first string in the array
                 switch (messageArray[0]) {
                     case "Hello":
                         System.out.println("Hello message received from " + receivePacket.getAddress());
 
                         // send a response with available options
-                        String options = "What would you like to do?\n1. Upload\n2. List available files";
+                        String options = "Welcome, You have successfully connected to the server.\n What would you like to do?";
                         byte[] sendBuffer = options.getBytes();
                         header = createHeader(seqNum + 1, seqNum);
                         byte[] sendData = new byte[sendBuffer.length + HEADER_SIZE];
@@ -72,7 +71,7 @@ public class Server {
                         System.arraycopy(sendBuffer, 0, sendData, HEADER_SIZE, sendBuffer.length);
                         DatagramPacket sendPacket = new DatagramPacket(sendData, sendData.length, receivePacket.getAddress(), receivePacket.getPort());
                         socket.send(sendPacket);
-                        System.out.println("menu options send");
+                        System.out.println("Menu options send to client");
                         break;
                     case "upload":
                         uploadFileToServer(socket, receivePacket, messageArray, seqNum);
