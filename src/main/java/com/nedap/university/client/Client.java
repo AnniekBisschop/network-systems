@@ -26,7 +26,7 @@ public class Client {
 
             sendHelloPacketToServer(socket, serverAddress);
 
-// receive acknowledgement from server
+            // receive acknowledgement from server
             byte[] receiveBuffer = new byte[HEADER_SIZE];
             DatagramPacket receivePacket = new DatagramPacket(receiveBuffer, receiveBuffer.length);
             socket.receive(receivePacket);
