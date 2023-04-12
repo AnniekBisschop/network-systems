@@ -85,31 +85,41 @@ public class Client {
 
             while (true) {
                 String choice = in.readLine();
-                byte[] sendBuffer;
-                DatagramPacket sendPacket;
 
                 switch (choice) {
                     case "1":
-                        System.out.println("choice 1");
+                        uploadFile(socket, serverAddress, in);
                         break;
                     case "2":
-                        System.out.println("choice 2");
+//                        downloadFile(socket, serverAddress, in);
                         break;
                     case "3":
-                        System.out.println("choice 3");
+//                        removeFile(socket, serverAddress, in);
                         break;
                     case "4":
-                        System.out.println("choice 4");
+//                        replaceFile(socket, serverAddress, in);
+                        break;
+                    case "5":
+//                        showList(socket, serverAddress);
+                        break;
+                    case "6":
+                        System.out.println("Exiting program...");
+                        // TODO: MORE CODE FOR EXITING PROGRAM?
+                        System.exit(0);
                         break;
                     default:
-                        System.out.println("Invalid choice. Please try again.");
-                        printMenu();
+                        System.out.println("Invalid choice");
+                        break;
                 }
+
+                printMenu(); // Call the printMenu() method after each iteration of the while loop.
             }
-        } catch (IOException e) {
-            System.err.println("IOException occurred while communicating with server: " + e.getMessage());
+
+        } catch (Exception e) {
+            e.printStackTrace();
         } finally {
-            if (socket != null) {
+            // close the socket after the user exits the program
+            if (socket != null && !socket.isClosed()) {
                 socket.close();
             }
         }
@@ -117,7 +127,7 @@ public class Client {
 
     private static void sendHelloPacketToServer(DatagramSocket socket, InetAddress serverAddress){
         // create the header
-        byte[] header = createHeader();
+        byte[] header = createHeader(0,0);
 
         // create the data string and convert it to a byte array
         String dataString = "Hello";
@@ -137,24 +147,21 @@ public class Client {
         }
     }
 
-    private static byte[] createHeader() {
+    private static byte[] createHeader(int seqNum, int ackNum) {
+        //The first line of the method creates a new byte array called header with a length of HEADER_SIZE.
         byte[] header = new byte[HEADER_SIZE];
-        ByteBuffer byteBuffer = ByteBuffer.wrap(header);
-        byteBuffer.putInt(0);
-        byteBuffer.putInt(0);
+        //set the first four bytes of the header array to the four bytes of the seqNum parameter, extract each byte.
+        header[0] = (byte) ((seqNum >> 24) & 0xFF);
+        header[1] = (byte) ((seqNum >> 16) & 0xFF);
+        header[2] = (byte) ((seqNum >> 8) & 0xFF);
+        header[3] = (byte) ((seqNum) & 0xFF);
+        //set the next three bytes of the header array to the three bytes of the ackNum parameter
+        header[4] = (byte) ((ackNum >> 24) & 0xFF);
+        header[5] = (byte) ((ackNum >> 16) & 0xFF);
+        header[6] = (byte) ((ackNum >> 8) & 0xFF);
+        header[7] = (byte) ((ackNum) & 0xFF);
         return header;
     }
-//private static byte[] createHeader(int seqNum, int ackNum) {
-//    String message = "Hello";
-//    byte[] messageBytes = message.getBytes();
-//    byte[] header = new byte[HEADER_SIZE + messageBytes.length];
-//    ByteBuffer byteBuffer = ByteBuffer.wrap(header);
-//    byteBuffer.putInt(seqNum);
-//    byteBuffer.putInt(ackNum);
-//    System.arraycopy(messageBytes, 0, header, HEADER_SIZE, messageBytes.length);
-//    return header;
-//}
-
     private static int getSeqNum(byte[] header) {
         ByteBuffer byteBuffer = ByteBuffer.wrap(header);
         return byteBuffer.getInt();
@@ -164,6 +171,87 @@ public class Client {
         ByteBuffer byteBuffer = ByteBuffer.wrap(header);
         byteBuffer.getInt(); // Skip over seqNum
         return byteBuffer.getInt();
+    }
+
+    private static void uploadFile(DatagramSocket socket, InetAddress serverAddress, BufferedReader in) throws IOException {
+        try {
+            // send upload request to server
+            System.out.print("Enter path to file you want to upload: ");
+            String filePath = in.readLine();
+            File file = new File(filePath);
+            if (!file.exists()) {
+                System.out.println("File not found.");
+                return;
+            }
+            String uploadMessage = "upload " + file.getName();
+
+            // create the header
+            byte[] header = createHeader(0,0);
+
+            sendUploadRequest(socket, serverAddress, uploadMessage, header);
+
+            // receive response from server to start uploading file data
+            byte[] receiveBuffer = new byte[HEADER_SIZE];
+            DatagramPacket receivePacket = new DatagramPacket(receiveBuffer, receiveBuffer.length);
+            socket.receive(receivePacket);
+            System.out.println("seqnum" + getSeqNum(receivePacket.getData()));
+            System.out.println("acknum" + getAckNum(receivePacket.getData()));
+
+            // read the file data and send it to the server in packets
+            FileInputStream fileInputStream = new FileInputStream(file);
+            byte[] fileBuffer = new byte[1024];
+            int bytesRead;
+            int packetCount = 0;
+            int seqNum = 0;
+            int expectedSeqNum = 0; // initialize expectedSeqNum
+            int ackNum = 1;
+            while ((bytesRead = fileInputStream.read(fileBuffer)) != -1) {
+                packetCount++;
+                byte[] packetData = new byte[HEADER_SIZE + bytesRead];
+                ByteBuffer byteBuffer = ByteBuffer.wrap(packetData);
+                byteBuffer.putInt(seqNum);
+                byteBuffer.putInt(ackNum);
+                System.arraycopy(fileBuffer, 0, packetData, HEADER_SIZE, bytesRead);
+
+                DatagramPacket packet = new DatagramPacket(packetData, packetData.length, serverAddress, PORT);
+                socket.send(packet);
+
+                // wait for acknowledgement from server before sending next packet
+                System.out.println("waiting for ack");
+                System.out.println("packetcount" + packetCount);
+                receiveBuffer = new byte[HEADER_SIZE];
+                receivePacket = new DatagramPacket(receiveBuffer, receiveBuffer.length);
+                socket.receive(receivePacket);
+                ackNum = getAckNum(receivePacket.getData());
+
+                // check if received ackNum matches expectedSeqNum
+                if (ackNum != expectedSeqNum) {
+                    System.out.println("Unexpected sequence number received: " + ackNum + " Expected sequence number is " + expectedSeqNum);
+                    // resend the packet with the same sequence number and ack number
+                    packet.setData(packetData);
+                    socket.send(packet);
+                }
+
+                seqNum += bytesRead;
+                expectedSeqNum = seqNum; // update expectedSeqNum to the next expected sequence number
+                System.out.println("seqnum" + seqNum);
+                System.out.println("acknum" + ackNum);
+            }
+            fileInputStream.close();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+    private static void sendUploadRequest(DatagramSocket socket, InetAddress serverAddress, String uploadMessage, byte[] header) throws IOException {
+        // send upload request packet to server
+        byte[] uploadBuffer = uploadMessage.getBytes();
+        byte[] uploadPacketData = new byte[header.length + uploadBuffer.length];
+        System.arraycopy(header, 0, uploadPacketData, 0, header.length);
+        System.arraycopy(uploadBuffer, 0, uploadPacketData, header.length, uploadBuffer.length);
+
+        DatagramPacket uploadPacket = new DatagramPacket(uploadPacketData, uploadPacketData.length, serverAddress, PORT);
+        socket.send(uploadPacket);
+        System.out.println("upload packet send");
     }
 
 
