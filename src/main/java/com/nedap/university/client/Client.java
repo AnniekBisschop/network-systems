@@ -100,7 +100,7 @@ public class Client {
 //                        replaceFile(socket, serverAddress, in);
                         break;
                     case "5":
-//                        showList(socket, serverAddress);
+                        showList(socket, serverAddress);
                         break;
                     case "6":
                         System.out.println("Exiting program...");
@@ -522,24 +522,46 @@ public class Client {
 //        }
 //    }
 //
-//    private static void showList(DatagramSocket socket, InetAddress serverAddress) {
-//        try {
-//            // send list request to server
-//            String listMessage = "list";
-//            byte[] listBuffer = listMessage.getBytes();
-//            DatagramPacket listPacket = new DatagramPacket(listBuffer, listBuffer.length, serverAddress, PORT);
-//            socket.send(listPacket);
-//
-//            // receive list from server
-//            byte[] listBufferResponse = new byte[1024];
-//            DatagramPacket listPacketResponse = new DatagramPacket(listBufferResponse, listBufferResponse.length);
-//            socket.receive(listPacketResponse);
-//            String responseList = new String(listPacketResponse.getData(), 0, listPacketResponse.getLength());
-//            System.out.println("List of files on server:\n" + responseList);
-//        } catch (IOException e) {
-//            e.printStackTrace();
-//        }
-//    }
+private static void showList(DatagramSocket socket, InetAddress serverAddress) {
+    try {
+        // Send list request to server
+        byte[] header = createHeader(1, 0);
+        String listMessage = "list";
+        byte[] listBuffer = listMessage.getBytes();
+        byte[] request = new byte[header.length + listBuffer.length];
+        System.arraycopy(header, 0, request, 0, header.length);
+        System.arraycopy(listBuffer, 0, request, header.length, listBuffer.length);
+        DatagramPacket listPacket = new DatagramPacket(request, request.length, serverAddress, PORT);
+        socket.send(listPacket);
+        System.out.println("list req send");
+        // Receive ack from server
+        byte[] ackBuffer = new byte[HEADER_SIZE];
+        DatagramPacket ackPacket = new DatagramPacket(ackBuffer, HEADER_SIZE);
+        socket.receive(ackPacket);
+        System.out.println("Ack received");
+
+        // Receive list from server
+        byte[] listBufferResponse = new byte[1024];
+        DatagramPacket listPacketResponse = new DatagramPacket(listBufferResponse, listBufferResponse.length);
+        socket.receive(listPacketResponse);
+        System.out.println("length packet " + listPacketResponse.getLength());
+
+        System.out.println("response from server received: " + listPacketResponse);
+        System.out.println("receive list from server");
+
+        // Extract and print file list
+        byte[] data = listPacketResponse.getData();
+        byte[] responseData = Arrays.copyOfRange(data, HEADER_SIZE, data.length);
+        String responseList = new String(responseData, 0, listPacketResponse.getLength() - HEADER_SIZE);
+
+        System.out.println("List received:");
+        System.out.println(responseList);
+
+    } catch (IOException e) {
+        e.printStackTrace();
+    }
+}
+
 
     public static void printMenu(){
         System.out.println("\nMenu Options:");

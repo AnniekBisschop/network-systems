@@ -47,11 +47,7 @@ public class Server {
                         (receivedData[6] << 8) & 0x0000FF00 |
                         (receivedData[7] << 0) & 0x000000FF;
 
-                // Send an acknowledgement for the received sequence number
-                byte[] header = createHeader(seqNum, seqNum + 1);
-                DatagramPacket ackPacket = new DatagramPacket(header, header.length, receivePacket.getSocketAddress());
-                socket.send(ackPacket);
-                System.out.println("ackPacket send" + ackPacket);
+
                 // extract the data from the packet and split it into an array of strings
                 byte[] data = new byte[receivePacket.getLength() - HEADER_SIZE];
                 System.arraycopy(receivedData, HEADER_SIZE, data, 0, data.length);
@@ -62,17 +58,23 @@ public class Server {
                 switch (messageArray[0]) {
                     case "Hello":
                         System.out.println("Hello message received from " + receivePacket.getAddress());
+                        // Send an acknowledgement for the received sequence number
+                        // Send an acknowledgement for the received sequence number
+                        byte[] ackHeader = createHeader(seqNum, seqNum + 1);
+                        DatagramPacket ackPacket = new DatagramPacket(ackHeader, ackHeader.length, receivePacket.getSocketAddress());
+                        socket.send(ackPacket);
+                        System.out.println("ackPacket send" + ackPacket);
 
                         // send a response with available options
                         String options = "Welcome, You have successfully connected to the server.\n What would you like to do?";
                         byte[] sendBuffer = options.getBytes();
-                        header = createHeader(seqNum + 1, seqNum);
-                        byte[] sendData = new byte[sendBuffer.length + HEADER_SIZE];
-                        System.arraycopy(header, 0, sendData, 0, HEADER_SIZE);
-                        System.arraycopy(sendBuffer, 0, sendData, HEADER_SIZE, sendBuffer.length);
-                        DatagramPacket sendPacket = new DatagramPacket(sendData, sendData.length, receivePacket.getAddress(), receivePacket.getPort());
-                        socket.send(sendPacket);
-                        System.out.println("Menu options send to client");
+                        byte[] responseHeader = createHeader(seqNum + 1, ackNum);
+                        byte[] responseData = new byte[responseHeader.length + sendBuffer.length];
+                        System.arraycopy(responseHeader, 0, responseData, 0, HEADER_SIZE);
+                        System.arraycopy(sendBuffer, 0, responseData, HEADER_SIZE, sendBuffer.length);
+                        DatagramPacket responsePacket = new DatagramPacket(responseData, responseData.length, receivePacket.getAddress(), receivePacket.getPort());
+                        socket.send(responsePacket);
+                        System.out.println("Menu options sent to client");
                         break;
                     case "upload":
                         uploadFileToServer(socket, receivePacket, messageArray, seqNum);
@@ -87,7 +89,7 @@ public class Server {
 //                        replaceFileOnServer(socket, receivePacket, messageArray, seqNum);
                         break;
                     case "list":
-//                        listAllFilesOnServer(socket, receivePacket, seqNum);
+                        listAllFilesOnServer(socket, receivePacket, seqNum);
                         break;
                     default:
                         System.out.println("Something went wrong..");
@@ -108,14 +110,11 @@ public class Server {
      * which are both 4 bytes long.
      * */
     private static byte[] createHeader(int seqNum, int ackNum) {
-        //The first line of the method creates a new byte array called header with a length of HEADER_SIZE.
         byte[] header = new byte[HEADER_SIZE];
-        //set the first four bytes of the header array to the four bytes of the seqNum parameter, extract each byte.
         header[0] = (byte) ((seqNum >> 24) & 0xFF);
         header[1] = (byte) ((seqNum >> 16) & 0xFF);
         header[2] = (byte) ((seqNum >> 8) & 0xFF);
         header[3] = (byte) ((seqNum) & 0xFF);
-        //set the next three bytes of the header array to the three bytes of the ackNum parameter
         header[4] = (byte) ((ackNum >> 24) & 0xFF);
         header[5] = (byte) ((ackNum >> 16) & 0xFF);
         header[6] = (byte) ((ackNum >> 8) & 0xFF);
@@ -429,24 +428,37 @@ public class Server {
 //        DatagramPacket successPacket = new DatagramPacket(successBuffer, successBuffer.length, receivePacket.getAddress(), receivePacket.getPort());
 //        socket.send(successPacket);
 //    }
-//
-//    private static void listAllFilesOnServer(DatagramSocket socket, DatagramPacket receivePacket, int seqNum) throws IOException {
-//        // Create a new File object representing the directory we want to list
-//        File directory = new File("/home/pi/data");
-//
-//        // Get a list of files in the directory as an array of strings
-//        String[] fileList = directory.list();
-//
-//        if (fileList != null) {
-//            System.out.println("Listing files on server");
-//            // Concatenate all the filenames into a single string with newline characters separating them
-//            String fileString = String.join("\n", fileList);
-//
-//            byte[] fileBytes = fileString.getBytes();
-//            DatagramPacket filePacket = new DatagramPacket(fileBytes, fileBytes.length, receivePacket.getAddress(), receivePacket.getPort());
-//            socket.send(filePacket);
-//        }
-//    }
+
+
+    private static void listAllFilesOnServer(DatagramSocket socket, DatagramPacket receivePacket, int seqNum) throws IOException {
+        // Create a new File object representing the directory we want to list
+        File directory = new File("/home/pi/data");
+
+        // Get a list of files in the directory as an array of strings
+        String[] fileList = directory.list();
+
+        if (fileList != null) {
+            System.out.println("Listing files on server");
+
+            // Send an acknowledgement to the client
+            byte[] ackHeader = createHeader(seqNum + 1, seqNum);
+            DatagramPacket ackPacket = new DatagramPacket(ackHeader, HEADER_SIZE, receivePacket.getAddress(), receivePacket.getPort());
+            socket.send(ackPacket);
+
+            // Create the response message containing the file list
+            String fileString = String.join("\n", fileList);
+            String responseMessage = "Here are the files in the directory:\n" + fileString;
+            byte[] responseMessageBytes = responseMessage.getBytes();
+            byte[] responseHeader = createHeader(seqNum + 2, seqNum + 1);
+            byte[] responseData = new byte[HEADER_SIZE + responseMessageBytes.length];
+            System.arraycopy(responseHeader, 0, responseData, 0, HEADER_SIZE);
+            System.arraycopy(responseMessageBytes, 0, responseData, HEADER_SIZE, responseMessageBytes.length);
+            DatagramPacket responsePacket = new DatagramPacket(responseData, responseData.length, receivePacket.getAddress(), receivePacket.getPort());
+            socket.send(responsePacket);
+            System.out.println("Packet length: " + responsePacket.getLength());
+            System.out.println("list send to client");
+        }
+    }
 
     public void stop() {
         keepAlive = false;
