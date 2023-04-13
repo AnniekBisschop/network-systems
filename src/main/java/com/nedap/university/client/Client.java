@@ -332,7 +332,7 @@ private static void removeFile(DatagramSocket socket, InetAddress serverAddress,
         while (!ackReceived && numRetries < maxRetries) {
             commandRequestToServer(socket, serverAddress, header, message);
             System.out.println("remove req send");
-
+//
             // Receive ack from server with a timeout of 5 seconds
             try {
                 socket.setSoTimeout(5000); // set the socket timeout to 5 seconds
@@ -352,23 +352,35 @@ private static void removeFile(DatagramSocket socket, InetAddress serverAddress,
             return; // exit the method and return to the main menu
         }
 
-
         // Receive response from server
-        byte[] responseBuffer = new byte[1024];
-        DatagramPacket responsePacket = new DatagramPacket(responseBuffer, responseBuffer.length);
-        socket.receive(responsePacket);
-        String responseRemove = new String(responsePacket.getData(), 0, responsePacket.getLength());
-        if (responseRemove.contains("File removed successfully")) {
-            System.out.println("File removed successfully");
-        } else if (responseRemove.contains("File not found")) {
-            System.out.println("File not found on server.");
-        } else {
-            System.err.println("Received unexpected response from server: " + responseRemove);
-        }
+        byte[] receiveData = new byte[1024];
+        DatagramPacket receivePacket = new DatagramPacket(receiveData, receiveData.length);
+        socket.receive(receivePacket);
+        byte[] responseData = receivePacket.getData();
+        int messageLength = responseData.length - header.length;
+        byte[] messageData = new byte[messageLength];
+        System.arraycopy(responseData, header.length, messageData, 0, messageLength);
+
+        String response = new String(messageData);
+        System.out.println("Received message: " + response.trim());
+
     } catch (IOException e) {
-        e.printStackTrace();
+        System.out.println("Error occurred while trying to remove file from server: " + e.getMessage());
     }
 }
+
+        // Receive response from server
+//        byte[] responseBuffer = new byte[1024];
+//        DatagramPacket responsePacket = new DatagramPacket(responseBuffer, responseBuffer.length);
+//        socket.receive(responsePacket);
+//        String responseRemove = new String(responsePacket.getData(), 0, responsePacket.getLength());
+//        if (responseRemove.contains("File removed successfully")) {
+//            System.out.println("File removed successfully");
+//        } else if (responseRemove.contains("File not found")) {
+//            System.out.println("File not found on server.");
+//        } else {
+//            System.err.println("Received unexpected response from server: " + responseRemove);
+//        }
 
 
     private static void receiveAckFromServer(DatagramSocket socket) throws IOException {

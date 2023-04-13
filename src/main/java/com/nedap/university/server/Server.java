@@ -326,7 +326,7 @@ private static void removeFileOnServer(DatagramSocket socket, DatagramPacket rec
     byte[] responseBuffer;
     // log that the remove request has been received
     System.out.println("Received remove request from client " + receivePacket.getAddress() + ":" + receivePacket.getPort());
-
+    sendServerAck(socket, receivePacket,seqNum);
     System.out.println("File to remove: " + messageArray[1]);
 
     // remove file from server
@@ -338,30 +338,27 @@ private static void removeFileOnServer(DatagramSocket socket, DatagramPacket rec
             Files.delete(fileToRemove.toPath());
             System.out.println("file removed successfully");
             // send a response to the client indicating the remove was successful
-            String message = "File removed successfully";
-            byte[] header = createHeader(1, 0);
-            responseBuffer = message.getBytes();
-            byte[] response = new byte[header.length + responseBuffer.length];
-            System.arraycopy(header, 0, response, 0, header.length);
-            System.arraycopy(responseBuffer, 0,response, header.length, responseBuffer.length);
-            responsePacket = new DatagramPacket(response, response.length, receivePacket.getAddress(),receivePacket.getPort());
+            responsePacket = createResponsePacket("File removed successfully", socket, receivePacket, 1);
             socket.send(responsePacket);
-            System.out.println("removed file and sent packet");
         } catch (IOException e) {
             // send a response to the client indicating the remove failed due to an IO error
-            String errorResponse = "Failed to remove file due to IO error";
-            responseBuffer = errorResponse.getBytes();
-            responsePacket = new DatagramPacket(responseBuffer, responseBuffer.length, receivePacket.getAddress(), receivePacket.getPort());
+            responsePacket = createResponsePacket("Failed to remove file due to IO error", socket, receivePacket, 1);
             socket.send(responsePacket);
         }
     } else {
         // send a response to the client indicating the file was not found on the server
-        String notFoundResponse = "File not found on server";
-        responseBuffer = notFoundResponse.getBytes();
-        responsePacket = new DatagramPacket(responseBuffer, responseBuffer.length, receivePacket.getAddress(), receivePacket.getPort());
+        responsePacket = createResponsePacket("File not found on server", socket, receivePacket, 1);
         socket.send(responsePacket);
     }
 }
+    private static DatagramPacket createResponsePacket(String message, DatagramSocket socket, DatagramPacket receivePacket, int seqNum) {
+        byte[] header = createHeader(seqNum, 0);
+        byte[] responseBuffer = message.getBytes();
+        byte[] response = new byte[header.length + responseBuffer.length];
+        System.arraycopy(header, 0, response, 0, header.length);
+        System.arraycopy(responseBuffer, 0, response, header.length, responseBuffer.length);
+        return new DatagramPacket(response, response.length, receivePacket.getAddress(), receivePacket.getPort());
+    }
 
     private static void sendServerAck(DatagramSocket socket, DatagramPacket receivePacket, int seqNum) throws IOException {
         // Send an acknowledgement
