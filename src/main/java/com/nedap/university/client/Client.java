@@ -94,7 +94,7 @@ public class Client {
 //                        downloadFile(socket, serverAddress, in);
                         break;
                     case "3":
-//                        removeFile(socket, serverAddress, in);
+                        removeFile(socket, serverAddress, in);
                         break;
                     case "4":
 //                        replaceFile(socket, serverAddress, in);
@@ -255,120 +255,7 @@ public class Client {
     }
 
 
-//    private static void uploadFile(DatagramSocket socket, InetAddress serverAddress, BufferedReader in) throws IOException {
-//        try {
-//            // send upload request to server
-//            System.out.print("Enter path to file you want to upload: ");
-//            String filePath = in.readLine();
-//            File file = new File(filePath);
-//            if (!file.exists()) {
-//                System.out.println("File not found.");
-//                return;
-//            }
-//            String uploadMessage = "upload " + file.getName();
-//
-//            byte[] uploadBuffer = uploadMessage.getBytes();
-//            DatagramPacket uploadPacket = new DatagramPacket(uploadBuffer, uploadBuffer.length, serverAddress, PORT);
-//            socket.send(uploadPacket);
-//
-//            // receive response from server
-//            byte[] responseBuffer = new byte[1024];
-//            DatagramPacket responsePacket = new DatagramPacket(responseBuffer, responseBuffer.length);
-//            socket.receive(responsePacket);
-//            String responseUpload = new String(responsePacket.getData(), 0, responsePacket.getLength());
-//            if (responseUpload.contains("Ready to receive file")) {
-//                System.out.println("Server is ready to receive file.");
-//            } else if (responseUpload.contains("File already exists")) {
-//                System.out.println("File already exists on server.");
-//                return;
-//            } else {
-//                System.err.println("Received unexpected response from server: " + responseUpload);
-//                return;
-//            }
-//
-//// read file from local file system and send to server in packets
-//            byte[] fileBuffer = new byte[1024];
-//            FileInputStream fileInputStream = new FileInputStream(file);
-//            int bytesRead;
-//            int packetCount = 0;
-//            int sequenceNumber = 0; // initialize sequence number
-//
-//            while ((bytesRead = fileInputStream.read(fileBuffer)) != -1) {
-//                packetCount++;
-//                // append sequence number to message
-//                String message = new String(fileBuffer, 0, bytesRead);
-//                byte[] messageBuffer = message.getBytes();
-//
-//                // create a DatagramPacket with the buffer, the length of the data, and the destination address and port
-//                DatagramPacket packet = new DatagramPacket(messageBuffer, messageBuffer.length, serverAddress, PORT);
-//
-//                // set the sequence number in the header of the packet
-//                packet.setData(String.valueOf(sequenceNumber).getBytes());
-//
-//                int MAX_RETRIES = 3; // maximum number of retries
-//                int retryCount = 0; // retry counter
-//                boolean ackReceived = false;
-//
-//                while (!ackReceived && retryCount < MAX_RETRIES) {
-//                    // send the packet
-//                    socket.send(packet);
-//
-//                    // wait for an ACK from the server
-//                    byte[] ackBuffer = new byte[1024];
-//                    DatagramPacket ackPacket = new DatagramPacket(ackBuffer, ackBuffer.length);
-//
-//                    try {
-//                        socket.setSoTimeout(5000); // timeout 5 sec for retransmitting
-//                        socket.receive(ackPacket);
-//
-//                        // extract the sequence number from the ACK packet
-//                        int ackSequenceNumber = Integer.parseInt(new String(ackPacket.getData(), 0, ackPacket.getLength()));
-//
-//                        // check if the ACK sequence number matches the packet sequence number
-//                        if (ackSequenceNumber == sequenceNumber) {
-//                            ackReceived = true;
-//                            System.out.println("seq num: " + sequenceNumber);
-//                            System.out.println("ack received " + ackReceived);
-//                            sequenceNumber++; // increment sequence number
-//                        }
-//                    } catch (SocketTimeoutException e) {
-//                        retryCount++; // increment retry counter
-//                        System.out.println("Timeout waiting for ACK. Retrying packet...");
-//                        socket.send(packet); // resend the current packet
-//                    } catch (IOException e) {
-//                        throw new RuntimeException(e);
-//                    }
-//                }
-//
-//                if (!ackReceived && retryCount == MAX_RETRIES) {
-//                    System.out.println("Max number of retries reached. Giving up on packet...");
-//                }
-//            }
-//
-//            // send end of file marker to server
-//            String endMessage = "end";
-//            byte[] endBuffer = endMessage.getBytes();
-//            DatagramPacket endPacket = new DatagramPacket(endBuffer, endBuffer.length, serverAddress, PORT);
-//            socket.send(endPacket);
-//
-//
-//            // receive response from server indicating file upload success
-//            byte[] successBuffer = new byte[1024];
-//            DatagramPacket successPacket = new DatagramPacket(successBuffer, successBuffer.length);
-//            socket.receive(successPacket);
-//            String successResponse = new String(successPacket.getData(), 0, successPacket.getLength());
-//            if (successResponse.contains("File uploaded successfully")) {
-//                System.out.println("File uploaded successfully.");
-//            } else {
-//                System.err.println("Received unexpected response from server: " + successResponse);
-//            }
-//
-//            System.out.println("File sent in " + packetCount + " packets.");
-//        } catch (IOException e) {
-//            e.printStackTrace();
-//        }
-//    }
-//
+
 //    private static void downloadFile(DatagramSocket socket, InetAddress serverAddress, BufferedReader in) {
 //        try {
 //            // send download request to server
@@ -428,33 +315,77 @@ public class Client {
 //    }
 //
 //
-//    private static void removeFile(DatagramSocket socket, InetAddress serverAddress, BufferedReader in) {
-//        try {
-//            // send remove request to server
-//            System.out.print("Enter name of file you want to remove: ");
-//            String fileName = in.readLine();
-//            String removeMessage = "remove " + fileName;
-//
-//            byte[] removeBuffer = removeMessage.getBytes();
-//            DatagramPacket removePacket = new DatagramPacket(removeBuffer, removeBuffer.length, serverAddress, PORT);
-//            socket.send(removePacket);
-//
-//            // receive response from server
-//            byte[] responseBuffer = new byte[1024];
-//            DatagramPacket responsePacket = new DatagramPacket(responseBuffer, responseBuffer.length);
-//            socket.receive(responsePacket);
-//            String responseRemove = new String(responsePacket.getData(), 0, responsePacket.getLength());
-//            if (responseRemove.contains("File removed successfully")) {
-//                System.out.println("File removed successfully");
-//            } else if (responseRemove.contains("File not found")) {
-//                System.out.println("File not found on server.");
-//            } else {
-//                System.err.println("Received unexpected response from server: " + responseRemove);
-//            }
-//        } catch (IOException e) {
-//            e.printStackTrace();
-//        }
-//    }
+private static void removeFile(DatagramSocket socket, InetAddress serverAddress, BufferedReader in) {
+    try {
+
+        // send remove request to server
+        System.out.print("Enter name of file you want to remove: ");
+        String fileName = in.readLine();
+
+        // Send remove request to server
+        byte[] header = createHeader(1, 0);
+        String message = "remove " + fileName;
+        boolean ackReceived = false;
+        int maxRetries = 3; // maximum number of times to retry sending the packet
+        int numRetries = 0; // number of times the packet has been retried
+
+        while (!ackReceived && numRetries < maxRetries) {
+            commandRequestToServer(socket, serverAddress, header, message);
+            System.out.println("remove req send");
+
+            // Receive ack from server with a timeout of 5 seconds
+            try {
+                socket.setSoTimeout(5000); // set the socket timeout to 5 seconds
+                receiveAckFromServer(socket);
+                ackReceived = true; // set the flag to true if the ack is received
+            } catch (SocketTimeoutException e) {
+                numRetries++; // increment the retry count if the timeout occurs
+                System.out.println("Timeout occurred, retrying...");
+            }
+        }
+
+        if (ackReceived) {
+            System.out.println("remove req acknowledged");
+        } else {
+            System.out.println("remove req failed after " + maxRetries + " attempts");
+            System.out.println("Returning to main menu, please try again...");
+            return; // exit the method and return to the main menu
+        }
+
+
+        // Receive response from server
+        byte[] responseBuffer = new byte[1024];
+        DatagramPacket responsePacket = new DatagramPacket(responseBuffer, responseBuffer.length);
+        socket.receive(responsePacket);
+        String responseRemove = new String(responsePacket.getData(), 0, responsePacket.getLength());
+        if (responseRemove.contains("File removed successfully")) {
+            System.out.println("File removed successfully");
+        } else if (responseRemove.contains("File not found")) {
+            System.out.println("File not found on server.");
+        } else {
+            System.err.println("Received unexpected response from server: " + responseRemove);
+        }
+    } catch (IOException e) {
+        e.printStackTrace();
+    }
+}
+
+
+    private static void receiveAckFromServer(DatagramSocket socket) throws IOException {
+        byte[] ackBuffer = new byte[HEADER_SIZE];
+        DatagramPacket ackPacket = new DatagramPacket(ackBuffer, HEADER_SIZE);
+        socket.receive(ackPacket);
+        System.out.println("Ack received");
+    }
+
+    private static void commandRequestToServer(DatagramSocket socket, InetAddress serverAddress, byte[] header, String message) throws IOException {
+        byte[] commandBuffer = message.getBytes();
+        byte[] command = new byte[header.length + commandBuffer.length];
+        System.arraycopy(header, 0, command, 0, header.length);
+        System.arraycopy(commandBuffer, 0,command, header.length, commandBuffer.length);
+        DatagramPacket commandPacket = new DatagramPacket(command, command.length, serverAddress, PORT);
+        socket.send(commandPacket);
+    }
 //    private static void replaceFile(DatagramSocket socket, InetAddress serverAddress, BufferedReader in) {
 //        try {
 //            // send replace request to server
@@ -521,7 +452,7 @@ public class Client {
 //            e.printStackTrace();
 //        }
 //    }
-//
+
 private static void showList(DatagramSocket socket, InetAddress serverAddress) {
     try {
         // Send list request to server
@@ -567,7 +498,7 @@ private static void showList(DatagramSocket socket, InetAddress serverAddress) {
 }
 
 
-    public static void printMenu(){
+private static void printMenu(){
         System.out.println("\nMenu Options:");
         System.out.println("1. Upload a file");
         System.out.println("2. Download a file");
