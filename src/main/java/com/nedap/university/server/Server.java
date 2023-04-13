@@ -7,6 +7,7 @@ import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
+import java.net.SocketTimeoutException;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -18,6 +19,11 @@ public class Server {
     private static final int HEADER_SIZE = 8; // 4 bytes for seq, 4 bytes for ack
     private static final byte[] ACK = {0, 1};
 
+    //pi: "home/pi/data"
+    private static final String pathListFile = "/Users/anniek.bisschop/Networking/network-systems/src/main/java/com/nedap/university/data";
+
+    //run on pi
+    //private static final String listPath = "/home/pi/data"
     private boolean keepAlive = true;
 
     public void start() {
@@ -63,10 +69,10 @@ public class Server {
                         byte[] ackHeader = createHeader(seqNum, seqNum + 1);
                         DatagramPacket ackPacket = new DatagramPacket(ackHeader, ackHeader.length, receivePacket.getSocketAddress());
                         socket.send(ackPacket);
-                        System.out.println("ackPacket send" + ackPacket);
+                        System.out.println("ackPacket send");
 
                         // send a response with available options
-                        String options = "Welcome, You have successfully connected to the server.\n What would you like to do?";
+                        String options = "Welcome, You have successfully connected to the server.";
                         byte[] sendBuffer = options.getBytes();
                         byte[] responseHeader = createHeader(seqNum + 1, ackNum);
                         byte[] responseData = new byte[responseHeader.length + sendBuffer.length];
@@ -89,7 +95,9 @@ public class Server {
 //                        replaceFileOnServer(socket, receivePacket, messageArray, seqNum);
                         break;
                     case "list":
+                        System.out.println("in list case");
                         listAllFilesOnServer(socket, receivePacket, seqNum);
+                        System.out.println("function finished");
                         break;
                     default:
                         System.out.println("Something went wrong..");
@@ -431,34 +439,63 @@ public class Server {
 
 
     private static void listAllFilesOnServer(DatagramSocket socket, DatagramPacket receivePacket, int seqNum) throws IOException {
-        // Create a new File object representing the directory we want to list
-        File directory = new File("/home/pi/data");
+        System.out.println("list message received from " + receivePacket.getAddress());
 
+        // Create a new File object representing the directory we want to list
+        File directory = new File(pathListFile);
         // Get a list of files in the directory as an array of strings
         String[] fileList = directory.list();
 
         if (fileList != null) {
             System.out.println("Listing files on server");
 
-            // Send an acknowledgement to the client
-            byte[] ackHeader = createHeader(seqNum + 1, seqNum);
-            DatagramPacket ackPacket = new DatagramPacket(ackHeader, HEADER_SIZE, receivePacket.getAddress(), receivePacket.getPort());
-            socket.send(ackPacket);
+            boolean ackReceived = false;
+            int maxTries = 3; // set maximum number of tries to send the hello packet
+            int tries = 0; // initialize the number of tries
 
-            // Create the response message containing the file list
-            String fileString = String.join("\n", fileList);
-            String responseMessage = "Here are the files in the directory:\n" + fileString;
-            byte[] responseMessageBytes = responseMessage.getBytes();
-            byte[] responseHeader = createHeader(seqNum + 2, seqNum + 1);
-            byte[] responseData = new byte[HEADER_SIZE + responseMessageBytes.length];
-            System.arraycopy(responseHeader, 0, responseData, 0, HEADER_SIZE);
-            System.arraycopy(responseMessageBytes, 0, responseData, HEADER_SIZE, responseMessageBytes.length);
-            DatagramPacket responsePacket = new DatagramPacket(responseData, responseData.length, receivePacket.getAddress(), receivePacket.getPort());
-            socket.send(responsePacket);
-            System.out.println("Packet length: " + responsePacket.getLength());
-            System.out.println("list send to client");
-        }
-    }
+            while (!ackReceived && tries < maxTries) {
+                try {
+                    if (tries > 0) {
+                        System.out.println("packet retransmitted...");
+                    }
+
+                    byte[] ackHeader = createHeader(seqNum + 1, seqNum);
+                    DatagramPacket ackPacket = new DatagramPacket(ackHeader, HEADER_SIZE, receivePacket.getAddress(), receivePacket.getPort());
+                    socket.send(ackPacket);
+
+                    // Create the response message containing the file list
+                    String fileString = String.join("\n", fileList);
+                    String responseMessage = "Here are the files in the directory:\n" + fileString;
+                    byte[] responseMessageBytes = responseMessage.getBytes();
+                    byte[] responseHeader = createHeader(seqNum + 2, seqNum + 1);
+                    byte[] responseData = new byte[HEADER_SIZE + responseMessageBytes.length];
+                    System.arraycopy(responseHeader, 0, responseData, 0, HEADER_SIZE);
+                    System.arraycopy(responseMessageBytes, 0, responseData, HEADER_SIZE, responseMessageBytes.length);
+                    DatagramPacket responsePacket = new DatagramPacket(responseData, responseData.length, receivePacket.getAddress(), receivePacket.getPort());
+                    socket.send(responsePacket);
+                    System.out.println("Packet length: " + responsePacket.getLength());
+                    System.out.println("list send to client");
+
+                    //wait for ack client
+                    byte[] ackBuffer = new byte[HEADER_SIZE];
+                    DatagramPacket ackReceivePacket = new DatagramPacket(ackBuffer, ackBuffer.length);
+                    socket.receive(ackReceivePacket);
+                    System.out.println("acknowledgement for list received");
+                    ackReceived = true;
+                } catch (SocketTimeoutException e) {
+                    System.out.println("Acknowledgement not received, trying again...");
+                    tries++;
+                    if (tries == maxTries) {
+                        System.out.println("Please try to make a new connection to the server. Program stopped: " + e.getMessage());
+                    }
+                } catch (IOException e) {
+                    System.out.println("Please try to make a new connection to the server. Program stopped.");
+                    System.out.println("IOException occurred while communicating with server: " + e.getMessage());
+                    System.exit(1);
+                }
+            }
+        }}
+
 
     public void stop() {
         keepAlive = false;

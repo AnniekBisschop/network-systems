@@ -23,7 +23,7 @@ public class Client {
             socket = new DatagramSocket();
 
             // Get the IP address of the server we want to send data to
-            InetAddress serverAddress = InetAddress.getByName("172.16.1.1");
+            InetAddress serverAddress = InetAddress.getByName("localhost");
 
             boolean ackReceived = false;
             int maxTries = 3; // set maximum number of tries to send the hello packet
@@ -36,7 +36,7 @@ public class Client {
                         System.out.println("Hello packet retransmitted...");
                     }
                     // set timeout for receiving acknowledgment from server
-                    socket.setSoTimeout(5000); // 2 seconds
+                    socket.setSoTimeout(5000); // 5 seconds
 
                     // receive acknowledgement from server
                     byte[] receiveBuffer = new byte[HEADER_SIZE];
@@ -534,6 +534,7 @@ private static void showList(DatagramSocket socket, InetAddress serverAddress) {
         DatagramPacket listPacket = new DatagramPacket(request, request.length, serverAddress, PORT);
         socket.send(listPacket);
         System.out.println("list req send");
+
         // Receive ack from server
         byte[] ackBuffer = new byte[HEADER_SIZE];
         DatagramPacket ackPacket = new DatagramPacket(ackBuffer, HEADER_SIZE);
@@ -546,8 +547,11 @@ private static void showList(DatagramSocket socket, InetAddress serverAddress) {
         socket.receive(listPacketResponse);
         System.out.println("length packet " + listPacketResponse.getLength());
 
-        System.out.println("response from server received: " + listPacketResponse);
-        System.out.println("receive list from server");
+        // Send acknowledgment back to the server
+        byte[] ackResponse = createHeader(2, 0); // Acknowledgment header
+        DatagramPacket ackPacketResponse = new DatagramPacket(ackResponse, ackResponse.length, serverAddress, PORT);
+        socket.send(ackPacketResponse);
+        System.out.println("Ack sent");
 
         // Extract and print file list
         byte[] data = listPacketResponse.getData();
