@@ -96,23 +96,14 @@ public class Server {
     }
 
     private static void sendWelcomeMessage(DatagramSocket socket, DatagramPacket receivePacket, int seqNum, int ackNum) throws IOException {
+        DatagramPacket responsePacket;
         System.out.println("Hello message received from " + receivePacket.getAddress());
         // Send an acknowledgement
-        byte[] ackHeader = createHeader(seqNum, seqNum + 1);
-        DatagramPacket ackPacket = new DatagramPacket(ackHeader, ackHeader.length, receivePacket.getSocketAddress());
-        socket.send(ackPacket);
-        System.out.println("ackPacket send");
-
+        sendServerAck(socket,receivePacket,seqNum);
         // send a response with available options
-        String options = "Welcome, You have successfully connected to the server.";
-        byte[] sendBuffer = options.getBytes();
-        byte[] responseHeader = createHeader(seqNum + 1, ackNum);
-        byte[] responseData = new byte[responseHeader.length + sendBuffer.length];
-        System.arraycopy(responseHeader, 0, responseData, 0, HEADER_SIZE);
-        System.arraycopy(sendBuffer, 0, responseData, HEADER_SIZE, sendBuffer.length);
-        DatagramPacket responsePacket = new DatagramPacket(responseData, responseData.length, receivePacket.getAddress(), receivePacket.getPort());
-        socket.send(responsePacket);
         System.out.println("Menu options sent to client");
+        responsePacket = createResponsePacket("Welcome, You have successfully connected to the server.", socket, receivePacket, 1);
+        socket.send(responsePacket);
     }
 
     /**
