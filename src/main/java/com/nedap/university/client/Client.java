@@ -162,6 +162,14 @@ public class Client {
         header[7] = (byte) ((ackNum) & 0xFF);
         return header;
     }
+
+//    private static byte[] createHeader(int seqNum, int ackNum) {
+//        byte[] header = new byte[HEADER_SIZE];
+//        ByteBuffer buffer = ByteBuffer.wrap(header);
+//        buffer.putInt(seqNum);
+//        buffer.putInt(ackNum);
+//        return header;
+//    }
     private static int getSeqNum(byte[] header) {
         ByteBuffer byteBuffer = ByteBuffer.wrap(header);
         return byteBuffer.getInt();
@@ -186,7 +194,6 @@ public class Client {
         }
     }
 
-
     private static void uploadFile(DatagramSocket socket, InetAddress serverAddress, BufferedReader in) throws IOException {
         try {
             // send upload request to server
@@ -207,7 +214,6 @@ public class Client {
             commandRequestToServer(socket, serverAddress, header, message);
 
             int expectedSeqNum = getSeqNum(header);
-            System.out.println("Expected seq" + expectedSeqNum);
             boolean ackReceived = false;
             int maxRetries = 3;
             int numRetries = 0;
@@ -235,10 +241,10 @@ public class Client {
             }
 
 
-// set initial sequence number to 1
+            // set initial sequence number to 1
             int seqNum = 1;
             int packetNum = 0;
-// open the file for reading
+            // open the file for reading
             try {
                 FileInputStream fileInputStream = new FileInputStream(file);
                 // create a buffer to hold the payload
@@ -249,26 +255,91 @@ public class Client {
 
                     // create the packet header
                     header = createHeader(seqNum, seqNum + 1);
-                    System.out.println("Seq num: " + seqNum);
                     // create the packet
                     byte[] packet = createPacket(header, payload);
-                    DatagramPacket sendPacket = new DatagramPacket(packet, packet.length, serverAddress, PORT);
-                    socket.send(sendPacket);
-                    seqNum++;
-                    packetNum++;
-                    System.out.println("Packet for file send " + packetNum);
+
+                    boolean packetAcked = false;
+                    numRetries = 0;
+                    while (!packetAcked && numRetries < maxRetries) {
+                        DatagramPacket sendPacket = new DatagramPacket(packet, packet.length, serverAddress, PORT);
+                        socket.send(sendPacket);
+                        seqNum++;
+                        packetNum++;
+                        System.out.println("Packet for file send " + packetNum);
+
+                        try {
+                            socket.setSoTimeout(10000);
+                            receiveAckFromServer(socket, seqNum - 1);
+                            packetAcked = true;
+                        } catch (SocketTimeoutException e) {
+                            numRetries++;
+                            System.out.println("Timeout occurred, retrying...");
+                        }
+                    }
+
+                    if (!packetAcked) {
+                        System.out.println("Packet " + (seqNum - 1) + " failed to be acknowledged after " + maxRetries + " attempts");
+                        System
+
+                                .out.println("Returning to main menu, please try again...");
+                        fileInputStream.close();
+                        return; // exit the method and return to the main menu
+                    }
+                            // reset the payload buffer for the next packet
+                            payload = new byte[PAYLOAD_SIZE];
                 }
-                System.out.println("last ack");
-                receiveAckFromServer(socket, expectedSeqNum);
-                System.out.println("File upload successful");
 
+                // close the input stream
+                fileInputStream.close();
+
+                // send end of file packet
+                header = createHeader(seqNum, seqNum + 1);
+                byte[] eofPacket = createPacket(header, new byte[0]);
+                DatagramPacket sendPacket = new DatagramPacket(eofPacket, eofPacket.length, serverAddress, PORT);
+                socket.send(sendPacket);
+
+                // create a buffer to hold the received packet
+                byte[] receiveData = new byte[PAYLOAD_SIZE + HEADER_SIZE];
+
+                // create a new DatagramPacket object to receive the end of file packet
+                DatagramPacket receivePacket = new DatagramPacket(receiveData, receiveData.length);
+
+                // wait for the end of file packet to arrive
+                socket.receive(receivePacket);
+
+                byte[] data = receivePacket.getData();
+                String msg = new String(data, HEADER_SIZE, receivePacket.getLength() - HEADER_SIZE);
+                System.out.println("Received message: " + msg);
+
+
+
+                // wait for end of file acknowledgement
+                numRetries = 0;
+                while (numRetries < maxRetries) {
+                    try {
+                        socket.setSoTimeout(5000);
+                        receiveAckFromServer(socket, seqNum);
+                        System.out.println("File upload complete");
+                        return;
+                    } catch (SocketTimeoutException e) {
+                        numRetries++;
+                        System.out.println("Timeout occurred, retrying...");
+                    }
+                }
+
+                System.out.println("End of file not acknowledged after " + maxRetries + " attempts");
+                System.out.println("Returning to main menu, please try again...");
+
+            } catch (FileNotFoundException e) {
+                System.out.println("File not found: " + e.getMessage());
+                return;
             } catch (IOException e) {
-                System.out.println("Failed to read file");
-                return; // exit the method and return to the main menu
+                System.out.println("Error uploading file: " + e.getMessage());
+                return;
             }
-
         } catch (IOException e) {
-            e.printStackTrace();
+            System.out.println("Error uploading file: " + e.getMessage());
+            return;
         }
     }
 
@@ -400,8 +471,6 @@ private static void removeFile(DatagramSocket socket, InetAddress serverAddress,
 //        } else {
 //            System.err.println("Received unexpected response from server: " + responseRemove);
 //        }
-
-
 
 
     private static void commandRequestToServer(DatagramSocket socket, InetAddress serverAddress, byte[] header, String message) throws IOException {
