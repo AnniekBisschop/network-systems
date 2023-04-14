@@ -21,11 +21,8 @@ public class Server {
     private static final byte[] ACK = {0, 1};
 
     //pi: "home/pi/data"
-    private static final String pathListFile = "/Users/anniek.bisschop/Networking/network-systems/src/main/java/com/nedap/university/data/";
+    private static final String pathToDirectory = "/Users/anniek.bisschop/Networking/network-systems/src/main/java/com/nedap/university/data/";
 
-    //run on pi
-    //private static final String listPath = "/home/pi/data"
-    private boolean keepAlive = true;
 
     public void start() {
         try {
@@ -124,6 +121,14 @@ public class Server {
         header[7] = (byte) ((ackNum) & 0xFF);
         return header;
     }
+    private static DatagramPacket createResponsePacket(String message, DatagramSocket socket, DatagramPacket receivePacket, int seqNum) {
+        byte[] header = createHeader(seqNum, 0);
+        byte[] responseBuffer = message.getBytes();
+        byte[] response = new byte[header.length + responseBuffer.length];
+        System.arraycopy(header, 0, response, 0, header.length);
+        System.arraycopy(responseBuffer, 0, response, header.length, responseBuffer.length);
+        return new DatagramPacket(response, response.length, receivePacket.getAddress(), receivePacket.getPort());
+    }
     private static int getSeqNum(byte[] header) {
         ByteBuffer byteBuffer = ByteBuffer.wrap(header);
         return byteBuffer.getInt();
@@ -135,56 +140,163 @@ public class Server {
         return byteBuffer.getInt();
     }
     public static void uploadFileToServer(DatagramSocket socket, DatagramPacket receivePacket, String[] messageArray, int seqNum) throws IOException {
-        // extract the filename from the message
-        String fileName = messageArray[1];
-        System.out.println(fileName);
+        // log that the remove request has been received
+        System.out.println("Received upload request from client " + receivePacket.getAddress() + ":" + receivePacket.getPort());
+        sendServerAck(socket, receivePacket,seqNum);
+        System.out.println("File to upload: " + messageArray[1]);
 
-        // create a new output stream to write the file
-        FileOutputStream fileOutputStream = new FileOutputStream(pathListFile + fileName);
+        // remove file from server
+        String fileNameToUpload = messageArray[1];
+        File fileToUpload = new File(pathToDirectory, fileNameToUpload);
+        System.out.println("file to upload: " + fileToUpload);
+        String amountPackages = messageArray[2];
+        System.out.println("packages to receive: " + amountPackages);
 
-        // send an acknowledgement to the client to start receiving the file data
+
+//
+//        // create a new output stream to write the file
+//        FileOutputStream fileOutputStream = new FileOutputStream(pathToDirectory + fileName);
+//
+//        // send an acknowledgement to the client to start receiving the file data
+//        byte[] ackHeader = createHeader(seqNum, seqNum + 1);
+//        DatagramPacket ackPacket = new DatagramPacket(ackHeader, ackHeader.length, receivePacket.getAddress(), receivePacket.getPort());
+//        socket.send(ackPacket);
+//        System.out.println("ack from uploadmethod");
+//
+//        int expectedSeqNum = 0; // initialize expectedSeqNum
+//        int ackNum = 0;
+//
+//        // receive file data packets from the client and write them to the file
+//        while (true) {
+//            byte[] receiveBuffer = new byte[1024];
+//            DatagramPacket packet = new DatagramPacket(receiveBuffer, receiveBuffer.length);
+//            socket.receive(packet);
+//
+//            // extract the sequence number, acknowledgement number, and file data from the packet
+//            int packetSeqNum = getSeqNum(receivePacket.getData());
+//            ackNum = packetSeqNum + receivePacket.getLength() - HEADER_SIZE;
+//            byte[] fileData = Arrays.copyOfRange(receivePacket.getData(), HEADER_SIZE, receivePacket.getLength());
+//
+//            // check if received seqNum matches expectedSeqNum
+//            if (packetSeqNum != expectedSeqNum) {
+//                System.out.println("Unexpected sequence number received: " + packetSeqNum + " Expected sequence number is " + expectedSeqNum);
+//                // resend the acknowledgement with the same ack number
+//                ackHeader = createHeader(expectedSeqNum, ackNum);
+//                ackPacket.setData(ackHeader);
+//                socket.send(ackPacket);
+//            } else {
+//                // write the file data to the output stream
+//                fileOutputStream.write(fileData);
+//                fileOutputStream.flush();
+//                System.out.println("Received packet with seqNum: " + packetSeqNum + " ackNum: " + ackNum);
+//
+//                // send an acknowledgement to the client
+//                ackHeader = createHeader(expectedSeqNum, ackNum);
+//                ackPacket.setData(ackHeader);
+//                socket.send(ackPacket);
+//
+//                expectedSeqNum = ackNum; // update expectedSeqNum to the next expected sequence number
+//            }
+//        }
+    }
+    private static void sendServerAck(DatagramSocket socket, DatagramPacket receivePacket, int seqNum) throws IOException {
+        // Send an acknowledgement
         byte[] ackHeader = createHeader(seqNum, seqNum + 1);
         DatagramPacket ackPacket = new DatagramPacket(ackHeader, ackHeader.length, receivePacket.getAddress(), receivePacket.getPort());
         socket.send(ackPacket);
-        System.out.println("ack from uploadmethod");
+        System.out.println("ackPacket sent");
+    }
+    private static void removeFileOnServer(DatagramSocket socket, DatagramPacket receivePacket, String[] messageArray, int seqNum) throws IOException {
+        DatagramPacket responsePacket;
+        byte[] responseBuffer;
+        // log that the remove request has been received
+        System.out.println("Received remove request from client " + receivePacket.getAddress() + ":" + receivePacket.getPort());
+        sendServerAck(socket, receivePacket,seqNum);
+        System.out.println("File to remove: " + messageArray[1]);
 
-        int expectedSeqNum = 0; // initialize expectedSeqNum
-        int ackNum = 0;
-
-        // receive file data packets from the client and write them to the file
-        while (true) {
-            byte[] receiveBuffer = new byte[1024];
-            DatagramPacket packet = new DatagramPacket(receiveBuffer, receiveBuffer.length);
-            socket.receive(packet);
-
-            // extract the sequence number, acknowledgement number, and file data from the packet
-            int packetSeqNum = getSeqNum(receivePacket.getData());
-            ackNum = packetSeqNum + receivePacket.getLength() - HEADER_SIZE;
-            byte[] fileData = Arrays.copyOfRange(receivePacket.getData(), HEADER_SIZE, receivePacket.getLength());
-
-            // check if received seqNum matches expectedSeqNum
-            if (packetSeqNum != expectedSeqNum) {
-                System.out.println("Unexpected sequence number received: " + packetSeqNum + " Expected sequence number is " + expectedSeqNum);
-                // resend the acknowledgement with the same ack number
-                ackHeader = createHeader(expectedSeqNum, ackNum);
-                ackPacket.setData(ackHeader);
-                socket.send(ackPacket);
-            } else {
-                // write the file data to the output stream
-                fileOutputStream.write(fileData);
-                fileOutputStream.flush();
-                System.out.println("Received packet with seqNum: " + packetSeqNum + " ackNum: " + ackNum);
-
-                // send an acknowledgement to the client
-                ackHeader = createHeader(expectedSeqNum, ackNum);
-                ackPacket.setData(ackHeader);
-                socket.send(ackPacket);
-
-                expectedSeqNum = ackNum; // update expectedSeqNum to the next expected sequence number
+        // remove file from server
+        String fileNameToRemove = messageArray[1];
+        File fileToRemove = new File(pathToDirectory, fileNameToRemove);
+        System.out.println("file to remove: " + fileToRemove);
+        if (fileToRemove.exists()) {
+            try {
+                Files.delete(fileToRemove.toPath());
+                System.out.println("file removed successfully");
+                // send a response to the client indicating the remove was successful
+                responsePacket = createResponsePacket("File removed successfully", socket, receivePacket, 1);
+                socket.send(responsePacket);
+            } catch (IOException e) {
+                // send a response to the client indicating the remove failed due to an IO error
+                responsePacket = createResponsePacket("Failed to remove file due to IO error", socket, receivePacket, 1);
+                socket.send(responsePacket);
             }
+        } else {
+            // send a response to the client indicating the file was not found on the server
+            responsePacket = createResponsePacket("File not found on server", socket, receivePacket, 1);
+            socket.send(responsePacket);
         }
     }
-//    private static void uploadFileToServer(DatagramSocket socket, DatagramPacket receivePacket, String[] messageArray, int seqNum) throws IOException {
+    private static void listAllFilesOnServer(DatagramSocket socket, DatagramPacket receivePacket, int seqNum) throws IOException {
+        System.out.println("list message received from " + receivePacket.getAddress());
+
+        // Create a new File object representing the directory we want to list
+        File directory = new File(pathToDirectory);
+        // Get a list of files in the directory as an array of strings
+        String[] fileList = directory.list();
+
+        if (fileList != null) {
+            System.out.println("Listing files on server");
+
+            boolean ackReceived = false;
+            int maxTries = 3; // set maximum number of tries to send the hello packet
+            int tries = 0; // initialize the number of tries
+
+            while (!ackReceived && tries < maxTries) {
+                try {
+                    if (tries > 0) {
+                        System.out.println("packet retransmitted...");
+                    }
+
+                    byte[] ackHeader = createHeader(seqNum + 1, seqNum);
+                    DatagramPacket ackPacket = new DatagramPacket(ackHeader, HEADER_SIZE, receivePacket.getAddress(), receivePacket.getPort());
+                    socket.send(ackPacket);
+
+                    // Create the response message containing the file list
+                    String fileString = String.join("\n", fileList);
+                    String responseMessage = "Here are the files in the directory:\n" + fileString;
+                    byte[] responseMessageBytes = responseMessage.getBytes();
+                    byte[] responseHeader = createHeader(seqNum + 2, seqNum + 1);
+                    byte[] responseData = new byte[HEADER_SIZE + responseMessageBytes.length];
+                    System.arraycopy(responseHeader, 0, responseData, 0, HEADER_SIZE);
+                    System.arraycopy(responseMessageBytes, 0, responseData, HEADER_SIZE, responseMessageBytes.length);
+                    DatagramPacket responsePacket = new DatagramPacket(responseData, responseData.length, receivePacket.getAddress(), receivePacket.getPort());
+                    socket.send(responsePacket);
+                    System.out.println("Packet length: " + responsePacket.getLength());
+                    System.out.println("list send to client");
+
+                    //wait for ack client
+                    byte[] ackBuffer = new byte[HEADER_SIZE];
+                    DatagramPacket ackReceivePacket = new DatagramPacket(ackBuffer, ackBuffer.length);
+                    socket.receive(ackReceivePacket);
+                    System.out.println("acknowledgement for list received");
+                    ackReceived = true;
+                } catch (SocketTimeoutException e) {
+                    System.out.println("Acknowledgement not received, trying again...");
+                    tries++;
+                    if (tries == maxTries) {
+                        System.out.println("Please try to make a new connection to the server. Program stopped: " + e.getMessage());
+                    }
+                } catch (IOException e) {
+                    System.out.println("Please try to make a new connection to the server. Program stopped.");
+                    System.out.println("IOException occurred while communicating with server: " + e.getMessage());
+                    System.exit(1);
+                }
+            }
+        }}
+
+
+
+    //    private static void uploadFileToServer(DatagramSocket socket, DatagramPacket receivePacket, String[] messageArray, int seqNum) throws IOException {
 //        if (messageArray.length < 2) {
 //            // log an error and send an error response to the client
 //            System.err.println("Received invalid upload request from client " + receivePacket.getAddress() + ":" + receivePacket.getPort());
@@ -312,53 +424,10 @@ public class Server {
 //            fileInputStream.close();
 //        }
 //    }
-private static void removeFileOnServer(DatagramSocket socket, DatagramPacket receivePacket, String[] messageArray, int seqNum) throws IOException {
-    DatagramPacket responsePacket;
-    byte[] responseBuffer;
-    // log that the remove request has been received
-    System.out.println("Received remove request from client " + receivePacket.getAddress() + ":" + receivePacket.getPort());
-    sendServerAck(socket, receivePacket,seqNum);
-    System.out.println("File to remove: " + messageArray[1]);
 
-    // remove file from server
-    String fileNameToRemove = messageArray[1];
-    File fileToRemove = new File(pathListFile, fileNameToRemove);
-    System.out.println("file to remove: " + fileToRemove);
-    if (fileToRemove.exists()) {
-        try {
-            Files.delete(fileToRemove.toPath());
-            System.out.println("file removed successfully");
-            // send a response to the client indicating the remove was successful
-            responsePacket = createResponsePacket("File removed successfully", socket, receivePacket, 1);
-            socket.send(responsePacket);
-        } catch (IOException e) {
-            // send a response to the client indicating the remove failed due to an IO error
-            responsePacket = createResponsePacket("Failed to remove file due to IO error", socket, receivePacket, 1);
-            socket.send(responsePacket);
-        }
-    } else {
-        // send a response to the client indicating the file was not found on the server
-        responsePacket = createResponsePacket("File not found on server", socket, receivePacket, 1);
-        socket.send(responsePacket);
-    }
-}
-    private static DatagramPacket createResponsePacket(String message, DatagramSocket socket, DatagramPacket receivePacket, int seqNum) {
-        byte[] header = createHeader(seqNum, 0);
-        byte[] responseBuffer = message.getBytes();
-        byte[] response = new byte[header.length + responseBuffer.length];
-        System.arraycopy(header, 0, response, 0, header.length);
-        System.arraycopy(responseBuffer, 0, response, header.length, responseBuffer.length);
-        return new DatagramPacket(response, response.length, receivePacket.getAddress(), receivePacket.getPort());
-    }
 
-    private static void sendServerAck(DatagramSocket socket, DatagramPacket receivePacket, int seqNum) throws IOException {
-        // Send an acknowledgement
-        byte[] ackHeader = createHeader(seqNum, seqNum + 1);
-        DatagramPacket ackPacket = new DatagramPacket(ackHeader, ackHeader.length, receivePacket.getAddress(), receivePacket.getPort());
-        socket.send(ackPacket);
-        System.out.println("ackPacket sent");
-    }
-//
+
+    //
 //    private static void replaceFileOnServer(DatagramSocket socket, DatagramPacket receivePacket, String[] messageArray, int seqNum) throws IOException {
 //        if (messageArray.length < 2) {
 //            // log an error and send an error response to the client
@@ -417,66 +486,8 @@ private static void removeFileOnServer(DatagramSocket socket, DatagramPacket rec
 //    }
 
 
-    private static void listAllFilesOnServer(DatagramSocket socket, DatagramPacket receivePacket, int seqNum) throws IOException {
-        System.out.println("list message received from " + receivePacket.getAddress());
-
-        // Create a new File object representing the directory we want to list
-        File directory = new File(pathListFile);
-        // Get a list of files in the directory as an array of strings
-        String[] fileList = directory.list();
-
-        if (fileList != null) {
-            System.out.println("Listing files on server");
-
-            boolean ackReceived = false;
-            int maxTries = 3; // set maximum number of tries to send the hello packet
-            int tries = 0; // initialize the number of tries
-
-            while (!ackReceived && tries < maxTries) {
-                try {
-                    if (tries > 0) {
-                        System.out.println("packet retransmitted...");
-                    }
-
-                    byte[] ackHeader = createHeader(seqNum + 1, seqNum);
-                    DatagramPacket ackPacket = new DatagramPacket(ackHeader, HEADER_SIZE, receivePacket.getAddress(), receivePacket.getPort());
-                    socket.send(ackPacket);
-
-                    // Create the response message containing the file list
-                    String fileString = String.join("\n", fileList);
-                    String responseMessage = "Here are the files in the directory:\n" + fileString;
-                    byte[] responseMessageBytes = responseMessage.getBytes();
-                    byte[] responseHeader = createHeader(seqNum + 2, seqNum + 1);
-                    byte[] responseData = new byte[HEADER_SIZE + responseMessageBytes.length];
-                    System.arraycopy(responseHeader, 0, responseData, 0, HEADER_SIZE);
-                    System.arraycopy(responseMessageBytes, 0, responseData, HEADER_SIZE, responseMessageBytes.length);
-                    DatagramPacket responsePacket = new DatagramPacket(responseData, responseData.length, receivePacket.getAddress(), receivePacket.getPort());
-                    socket.send(responsePacket);
-                    System.out.println("Packet length: " + responsePacket.getLength());
-                    System.out.println("list send to client");
-
-                    //wait for ack client
-                    byte[] ackBuffer = new byte[HEADER_SIZE];
-                    DatagramPacket ackReceivePacket = new DatagramPacket(ackBuffer, ackBuffer.length);
-                    socket.receive(ackReceivePacket);
-                    System.out.println("acknowledgement for list received");
-                    ackReceived = true;
-                } catch (SocketTimeoutException e) {
-                    System.out.println("Acknowledgement not received, trying again...");
-                    tries++;
-                    if (tries == maxTries) {
-                        System.out.println("Please try to make a new connection to the server. Program stopped: " + e.getMessage());
-                    }
-                } catch (IOException e) {
-                    System.out.println("Please try to make a new connection to the server. Program stopped.");
-                    System.out.println("IOException occurred while communicating with server: " + e.getMessage());
-                    System.exit(1);
-                }
-            }
-        }}
 
 
-    public void stop() {
-        keepAlive = false;
-    }
+
+
 }

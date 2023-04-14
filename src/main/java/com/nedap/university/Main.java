@@ -15,7 +15,7 @@ public class Main {
 
     private Main() {}
 
-    public static void main(String[] args) throws IOException {
+    public static void main(String[] args) {
         System.out.println("Hello, starting server!");
 
         initShutdownHook();
@@ -23,10 +23,6 @@ public class Main {
         Server server = new Server();
         server.start();
     }
-
-
-
-
 
     private static void initShutdownHook() {
         final Thread shutdownThread = new Thread() {
