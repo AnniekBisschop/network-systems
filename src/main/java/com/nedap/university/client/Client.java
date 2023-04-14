@@ -249,15 +249,17 @@ public class Client {
 
                     // create the packet header
                     header = createHeader(seqNum, seqNum + 1);
-
+                    System.out.println("Seq num: " + seqNum);
                     // create the packet
                     byte[] packet = createPacket(header, payload);
                     DatagramPacket sendPacket = new DatagramPacket(packet, packet.length, serverAddress, PORT);
                     socket.send(sendPacket);
+                    seqNum++;
                     packetNum++;
-                    System.out.println("Packet for file send" + packetNum);
+                    System.out.println("Packet for file send " + packetNum);
                 }
-
+                System.out.println("last ack");
+                receiveAckFromServer(socket, expectedSeqNum);
                 System.out.println("File upload successful");
 
             } catch (IOException e) {

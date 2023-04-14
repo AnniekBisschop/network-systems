@@ -14,6 +14,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
+
 public class Server {
 
     private static final int BUFFER_SIZE = 1024;
@@ -22,6 +23,7 @@ public class Server {
 
     //pi: "home/pi/data"
     private static final String pathToDirectory = "/Users/anniek.bisschop/Networking/network-systems/src/main/java/com/nedap/university/data/";
+    private static final int PAYLOAD_SIZE = 1024;
 
 
     public void start() {
@@ -142,7 +144,7 @@ public class Server {
     public static void uploadFileToServer(DatagramSocket socket, DatagramPacket receivePacket, String[] messageArray, int seqNum) throws IOException {
         // log that the remove request has been received
         System.out.println("Received upload request from client " + receivePacket.getAddress() + ":" + receivePacket.getPort());
-        sendServerAck(socket, receivePacket,seqNum);
+        sendServerAck(socket, receivePacket, seqNum);
         System.out.println("File to upload: " + messageArray[1]);
 
         // remove file from server
@@ -152,53 +154,41 @@ public class Server {
         String amountPackages = messageArray[2];
         System.out.println("packages to receive: " + amountPackages);
 
+        // create a buffer to hold the incoming data
+        byte[] buffer = new byte[PAYLOAD_SIZE];
+        int numPacketsReceived = 0;
+
+        // create a FileOutputStream to write the data to a file
+        FileOutputStream fileOutputStream = new FileOutputStream(fileToUpload);
+
+
+
+        while (numPacketsReceived < Integer.parseInt(amountPackages)) {
+            // create a DatagramPacket to receive the packet from the client
+            DatagramPacket filePacket = new DatagramPacket(buffer, buffer.length);
+            socket.receive(filePacket);
+            int packetSeqNum = getSeqNum(filePacket.getData());
+            numPacketsReceived++;
+            System.out.println("Packet received: " + numPacketsReceived + ", seqnum: " + packetSeqNum);
+
+            // send an ACK to the client
+            sendServerAck(socket, receivePacket, packetSeqNum);
+            System.out.println("with seqNum " + packetSeqNum);
+            // write the payload to the file
+            fileOutputStream.write(filePacket.getData(), 0, filePacket.getLength());
+            fileOutputStream.flush();
+
 
 //
-//        // create a new output stream to write the file
-//        FileOutputStream fileOutputStream = new FileOutputStream(pathToDirectory + fileName);
-//
-//        // send an acknowledgement to the client to start receiving the file data
-//        byte[] ackHeader = createHeader(seqNum, seqNum + 1);
-//        DatagramPacket ackPacket = new DatagramPacket(ackHeader, ackHeader.length, receivePacket.getAddress(), receivePacket.getPort());
-//        socket.send(ackPacket);
-//        System.out.println("ack from uploadmethod");
-//
-//        int expectedSeqNum = 0; // initialize expectedSeqNum
-//        int ackNum = 0;
-//
-//        // receive file data packets from the client and write them to the file
-//        while (true) {
-//            byte[] receiveBuffer = new byte[1024];
-//            DatagramPacket packet = new DatagramPacket(receiveBuffer, receiveBuffer.length);
-//            socket.receive(packet);
-//
-//            // extract the sequence number, acknowledgement number, and file data from the packet
-//            int packetSeqNum = getSeqNum(receivePacket.getData());
-//            ackNum = packetSeqNum + receivePacket.getLength() - HEADER_SIZE;
-//            byte[] fileData = Arrays.copyOfRange(receivePacket.getData(), HEADER_SIZE, receivePacket.getLength());
-//
-//            // check if received seqNum matches expectedSeqNum
-//            if (packetSeqNum != expectedSeqNum) {
-//                System.out.println("Unexpected sequence number received: " + packetSeqNum + " Expected sequence number is " + expectedSeqNum);
-//                // resend the acknowledgement with the same ack number
-//                ackHeader = createHeader(expectedSeqNum, ackNum);
-//                ackPacket.setData(ackHeader);
-//                socket.send(ackPacket);
-//            } else {
-//                // write the file data to the output stream
-//                fileOutputStream.write(fileData);
-//                fileOutputStream.flush();
-//                System.out.println("Received packet with seqNum: " + packetSeqNum + " ackNum: " + ackNum);
-//
-//                // send an acknowledgement to the client
-//                ackHeader = createHeader(expectedSeqNum, ackNum);
-//                ackPacket.setData(ackHeader);
-//                socket.send(ackPacket);
-//
-//                expectedSeqNum = ackNum; // update expectedSeqNum to the next expected sequence number
-//            }
-//        }
+//        // close the FileOutputStream and print a message
+
+
     }
+        System.out.println("File upload successful");
+        fileOutputStream.close();
+    }
+
+
     private static void sendServerAck(DatagramSocket socket, DatagramPacket receivePacket, int seqNum) throws IOException {
         // Send an acknowledgement
         byte[] ackHeader = createHeader(seqNum, seqNum + 1);
