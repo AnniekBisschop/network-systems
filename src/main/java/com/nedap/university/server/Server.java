@@ -154,14 +154,14 @@ public class Server {
         String amountPackages = messageArray[2];
         System.out.println("packages to receive: " + amountPackages);
 
+        socket.receive(receivePacket);
+
         // create a buffer to hold the incoming data
         byte[] buffer = new byte[PAYLOAD_SIZE];
         int numPacketsReceived = 0;
 
-        // create a FileOutputStream to write the data to a file
+// create a FileOutputStream to write the data to a file
         FileOutputStream fileOutputStream = new FileOutputStream(fileToUpload);
-
-
 
         while (numPacketsReceived < Integer.parseInt(amountPackages)) {
             // create a DatagramPacket to receive the packet from the client
@@ -170,24 +170,26 @@ public class Server {
             int packetSeqNum = getSeqNum(filePacket.getData());
             numPacketsReceived++;
             System.out.println("Packet received: " + numPacketsReceived + ", seqnum: " + packetSeqNum);
-
             // send an ACK to the client
             sendServerAck(socket, receivePacket, packetSeqNum);
             System.out.println("with seqNum " + packetSeqNum);
-            // write the payload to the file
-            fileOutputStream.write(filePacket.getData(), 0, filePacket.getLength());
+
+            // write the payload to the file (excluding the header)
+            byte[] payload = new byte[filePacket.getLength() - HEADER_SIZE];
+            System.arraycopy(filePacket.getData(), HEADER_SIZE, payload, 0, payload.length);
+            int endIndex = payload.length - 1;
+            while (endIndex >= 0 && payload[endIndex] == 0) { // find index of last non-zero byte
+                endIndex--;
+            }
+            byte[] trimmedPayload = Arrays.copyOfRange(payload, 0, endIndex + 1); // copy only non-zero bytes
+            fileOutputStream.write(trimmedPayload, 0, trimmedPayload.length);
             fileOutputStream.flush();
+        }
 
-
-//
-//        // close the FileOutputStream and print a message
-
-
-    }
+// close the FileOutputStream and print a message
         System.out.println("File upload successful");
         fileOutputStream.close();
     }
-
 
     private static void sendServerAck(DatagramSocket socket, DatagramPacket receivePacket, int seqNum) throws IOException {
         // Send an acknowledgement
