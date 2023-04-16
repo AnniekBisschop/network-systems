@@ -102,7 +102,7 @@ public class Client {
 //                        replaceFile(socket, serverAddress, in);
                         break;
                     case "5":
-                        showList(socket, serverAddress);
+                        showList(socket, serverAddress, receivePacket, seqNum);
                         break;
                     case "6":
                         System.out.println("Exiting program...");
@@ -523,7 +523,7 @@ private static void removeFile(DatagramSocket socket, InetAddress serverAddress,
 //        }
 //    }
 
-private static void showList(DatagramSocket socket, InetAddress serverAddress) {
+private static void showList(DatagramSocket socket, InetAddress serverAddress, DatagramPacket receivePacket, int seqNum) {
     try {
         // Send list request to server
         byte[] header = Protocol.createHeader(1, 0);
@@ -549,17 +549,14 @@ private static void showList(DatagramSocket socket, InetAddress serverAddress) {
         System.out.println("length packet " + listPacketResponse.getLength());
 
         // Send acknowledgment back to the server
-        byte[] ackResponse = Protocol.createHeader(2, 0); // Acknowledgment header
-        DatagramPacket ackPacketResponse = new DatagramPacket(ackResponse, ackResponse.length, serverAddress, PORT);
-        socket.send(ackPacketResponse);
-        System.out.println("Ack sent");
+        Protocol.sendAck(socket, receivePacket, seqNum);
+        System.out.println("Ack sent with receivepacket: " + receivePacket + "seqnum: " + seqNum);
 
         // Extract and print file list
         byte[] data = listPacketResponse.getData();
         byte[] responseData = Arrays.copyOfRange(data, HEADER_SIZE, data.length);
         String responseList = new String(responseData, 0, listPacketResponse.getLength() - HEADER_SIZE);
 
-        System.out.println("List received:");
         System.out.println(responseList);
 
     } catch (IOException e) {
