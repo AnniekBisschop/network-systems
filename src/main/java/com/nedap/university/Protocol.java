@@ -3,6 +3,7 @@ package com.nedap.university;
 import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
+import java.net.InetAddress;
 
 public class Protocol {
 
@@ -74,12 +75,21 @@ public class Protocol {
 
     //method for bytes
     public static DatagramPacket createResponsePacket(byte[] data, DatagramSocket socket, DatagramPacket receivePacket, int seqNum) {
-        byte[] header = createHeader(seqNum, 0);
+        byte[] header = createHeader(seqNum++, 0);
         byte[] response = new byte[header.length + data.length];
         System.arraycopy(header, 0, response, 0, header.length);
         System.arraycopy(data, 0, response, header.length, data.length);
         return new DatagramPacket(response, response.length, receivePacket.getAddress(), receivePacket.getPort());
     }
+
+//    public static DatagramPacket createResponsePacket(byte[] data, DatagramSocket socket, InetAddress destinationAddress, int destinationPort, int seqNum) {
+//        byte[] header = createHeader(seqNum, 0);
+//        byte[] response = new byte[header.length + data.length];
+//        System.arraycopy(header, 0, response, 0, header.length);
+//        System.arraycopy(data, 0, response, header.length, data.length);
+//        return new DatagramPacket(response, response.length, destinationAddress, destinationPort);
+//    }
+
 
     public static void sendAck(DatagramSocket socket, DatagramPacket receivePacket, int seqNum) throws IOException {
         // Create a header with the sequence number and acknowledgement number

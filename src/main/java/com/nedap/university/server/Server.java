@@ -133,6 +133,7 @@ public class Server {
         // close the FileOutputStream and print a message
         System.out.println("File upload successful");
         fileOutputStream.close();
+
     }
 
 
