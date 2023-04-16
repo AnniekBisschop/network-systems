@@ -3,6 +3,7 @@ package com.nedap.university;
 import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
+import java.nio.ByteBuffer;
 
 public class Protocol {
 
@@ -49,6 +50,18 @@ public class Protocol {
         //byteBuffer.getInt(); // Skip over seqNum
         //return byteBuffer.getInt();
     }
+
+//Different way to get seq and ack
+//    private static int getSeqNum(byte[] header) {
+//        ByteBuffer byteBuffer = ByteBuffer.wrap(header);
+//        return byteBuffer.getInt();
+//    }
+//
+//    private static int getAckNum(byte[] header) {
+//        ByteBuffer byteBuffer = ByteBuffer.wrap(header);
+//        byteBuffer.getInt(); // Skip over seqNum
+//        return byteBuffer.getInt();
+//    }
 
     public static DatagramPacket createResponsePacket(String message, DatagramSocket socket, DatagramPacket receivePacket, int seqNum) {
         byte[] header = createHeader(seqNum, 0);

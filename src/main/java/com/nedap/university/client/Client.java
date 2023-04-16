@@ -45,8 +45,8 @@ public class Client {
                     DatagramPacket receivePacket = new DatagramPacket(receiveBuffer, receiveBuffer.length);
                     socket.receive(receivePacket);
                     System.out.println("acknowledgement from server received: " + receivePacket);
-                    int seqNum = getSeqNum(receivePacket.getData());
-                    int ackNum = getAckNum(receivePacket.getData());
+                    int seqNum = Protocol.getSeqNum(receivePacket.getData());
+                    int ackNum = Protocol.getAckNum(receivePacket.getData());
                     System.out.println("seqnum" + seqNum);
                     System.out.println("acknum" + ackNum);
                     ackReceived = true;
@@ -68,8 +68,8 @@ public class Client {
             DatagramPacket receivePacket = new DatagramPacket(receiveBuffer, receiveBuffer.length);
             socket.receive(receivePacket);
             System.out.println("response from server received: " + receivePacket);
-            int seqNum = getSeqNum(receivePacket.getData());
-            int ackNum = getAckNum(receivePacket.getData());
+            int seqNum = Protocol.getSeqNum(receivePacket.getData());
+            int ackNum = Protocol.getAckNum(receivePacket.getData());
             System.out.println("seqnum" + seqNum);
             System.out.println("acknum" + ackNum);
 
@@ -149,23 +149,13 @@ public class Client {
         }
     }
 
-    private static int getSeqNum(byte[] header) {
-        ByteBuffer byteBuffer = ByteBuffer.wrap(header);
-        return byteBuffer.getInt();
-    }
-
-    private static int getAckNum(byte[] header) {
-        ByteBuffer byteBuffer = ByteBuffer.wrap(header);
-        byteBuffer.getInt(); // Skip over seqNum
-        return byteBuffer.getInt();
-    }
 
     private static void receiveAckFromServer(DatagramSocket socket, int expectedSeqNum) throws IOException {
         byte[] ackBuffer = new byte[HEADER_SIZE];
         DatagramPacket ackPacket = new DatagramPacket(ackBuffer, HEADER_SIZE);
         socket.receive(ackPacket);
         byte[] header = Arrays.copyOfRange(ackPacket.getData(), 0, HEADER_SIZE);
-        int receivedSeqNum = getSeqNum(header);
+        int receivedSeqNum = Protocol.getSeqNum(header);
         if (receivedSeqNum == expectedSeqNum) {
             System.out.println("Ack received for packet " + expectedSeqNum);
         } else {
@@ -192,7 +182,7 @@ public class Client {
             String message = "upload " + file.getName() + " " + numPackets;
             commandRequestToServer(socket, serverAddress, header, message);
 
-            int expectedSeqNum = getSeqNum(header);
+            int expectedSeqNum = Protocol.getSeqNum(header);
             boolean ackReceived = false;
             int maxRetries = 3;
             int numRetries = 0;
@@ -402,7 +392,7 @@ private static void removeFile(DatagramSocket socket, InetAddress serverAddress,
         // Send remove request to server
         byte[] header = Protocol.createHeader(1, 0);
         String message = "remove " + fileName;
-        int expectedSeqNum = getSeqNum(header);
+        int expectedSeqNum = Protocol.getSeqNum(header);
         boolean ackReceived = false;
         int maxRetries = 3; // maximum number of times to retry sending the packet
         int numRetries = 0; // number of times the packet has been retried
