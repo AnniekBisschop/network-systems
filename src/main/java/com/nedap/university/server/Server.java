@@ -35,8 +35,8 @@ public class Server {
                 socket.receive(receivePacket);
 
                 byte[] receivedData = receivePacket.getData();
-                int seqNum = getSeqNum(receivedData);
-                int ackNum = getAckNum(receivedData);
+                int seqNum = Protocol.getSeqNum(receivedData);
+                int ackNum = Protocol.getAckNum(receivedData);
 
                 // extract the data from the packet and split it into an array of strings
                 byte[] data = new byte[receivePacket.getLength() - HEADER_SIZE];
@@ -89,29 +89,6 @@ public class Server {
         socket.send(responsePacket);
     }
 
-
-
-
-
-    private static int getSeqNum(byte[] header) {
-        return (header[0] << 24) & 0xFF000000 |
-                (header[1] << 16) & 0x00FF0000 |
-                (header[2] << 8) & 0x0000FF00 |
-                (header[3] << 0) & 0x000000FF;
-        // ByteBuffer byteBuffer = ByteBuffer.wrap(header);
-       //return byteBuffer.getInt();
-    }
-
-    // Extract the acknowledgement number from the packet header
-    private static int getAckNum(byte[] header) {
-        return  (header[4] << 24) & 0xFF000000 |
-                (header[5] << 16) & 0x00FF0000 |
-                (header[6] << 8) & 0x0000FF00 |
-                (header[7] << 0) & 0x000000FF;
-        //ByteBuffer byteBuffer = ByteBuffer.wrap(header);
-        //byteBuffer.getInt(); // Skip over seqNum
-        //return byteBuffer.getInt();
-    }
     public static void uploadFileToServer(DatagramSocket socket, DatagramPacket receivePacket, String[] messageArray, int seqNum) throws IOException {
         // log that the remove request has been received
         System.out.println("Received upload request from client " + receivePacket.getAddress() + ":" + receivePacket.getPort());
@@ -137,7 +114,7 @@ public class Server {
             // create a DatagramPacket to receive the packet from the client
             DatagramPacket filePacket = new DatagramPacket(buffer, buffer.length);
             socket.receive(filePacket);
-            int packetSeqNum = getSeqNum(filePacket.getData());
+            int packetSeqNum = Protocol.getSeqNum(filePacket.getData());
             numPacketsReceived++;
             System.out.println("Packet received: " + numPacketsReceived + ", seqnum: " + packetSeqNum);
             // send an ACK to the client
@@ -194,7 +171,7 @@ public class Server {
 
     private static void listAllFilesOnServer(DatagramSocket socket, DatagramPacket receivePacket, int seqNum) throws IOException {
         System.out.println("list message received from " + receivePacket.getAddress());
-
+        DatagramPacket responsePacket;
         // Create a new File object representing the directory we want to list
         File directory = new File(pathToDirectory);
         // Get a list of files in the directory as an array of strings
@@ -213,20 +190,15 @@ public class Server {
                         System.out.println("packet retransmitted...");
                     }
 
-                    byte[] ackHeader = Protocol.createHeader(seqNum + 1, seqNum);
-                    DatagramPacket ackPacket = new DatagramPacket(ackHeader, HEADER_SIZE, receivePacket.getAddress(), receivePacket.getPort());
-                    socket.send(ackPacket);
+                    Protocol.sendServerAck(socket, receivePacket, seqNum);
 
                     // Create the response message containing the file list
                     String fileString = String.join("\n", fileList);
                     String responseMessage = "Here are the files in the directory:\n" + fileString;
-                    byte[] responseMessageBytes = responseMessage.getBytes();
-                    byte[] responseHeader = Protocol.createHeader(seqNum + 2, seqNum + 1);
-                    byte[] responseData = new byte[HEADER_SIZE + responseMessageBytes.length];
-                    System.arraycopy(responseHeader, 0, responseData, 0, HEADER_SIZE);
-                    System.arraycopy(responseMessageBytes, 0, responseData, HEADER_SIZE, responseMessageBytes.length);
-                    DatagramPacket responsePacket = new DatagramPacket(responseData, responseData.length, receivePacket.getAddress(), receivePacket.getPort());
+                    // send a response to the client indicating the remove was successful
+                    responsePacket = Protocol.createResponsePacket(responseMessage, socket, receivePacket, 1);
                     socket.send(responsePacket);
+
                     System.out.println("Packet length: " + responsePacket.getLength());
                     System.out.println("list send to client");
 

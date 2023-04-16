@@ -27,6 +27,26 @@ public class Protocol {
         return header;
     }
 
+    public static int getSeqNum(byte[] header) {
+        return (header[0] << 24) & 0xFF000000 |
+                (header[1] << 16) & 0x00FF0000 |
+                (header[2] << 8) & 0x0000FF00 |
+                (header[3] << 0) & 0x000000FF;
+        // ByteBuffer byteBuffer = ByteBuffer.wrap(header);
+        //return byteBuffer.getInt();
+    }
+
+    // Extract the acknowledgement number from the packet header
+    public static int getAckNum(byte[] header) {
+        return  (header[4] << 24) & 0xFF000000 |
+                (header[5] << 16) & 0x00FF0000 |
+                (header[6] << 8) & 0x0000FF00 |
+                (header[7] << 0) & 0x000000FF;
+        //ByteBuffer byteBuffer = ByteBuffer.wrap(header);
+        //byteBuffer.getInt(); // Skip over seqNum
+        //return byteBuffer.getInt();
+    }
+
     public static DatagramPacket createResponsePacket(String message, DatagramSocket socket, DatagramPacket receivePacket, int seqNum) {
         byte[] header = createHeader(seqNum, 0);
         byte[] responseBuffer = message.getBytes();
@@ -46,6 +66,27 @@ public class Protocol {
         // Send the acknowledgement packet
         socket.send(ackPacket);
         System.out.println("Ack sent with seqnum: " + seqNum);
+    }
+
+
+    //TODO IMPLEMENTATION FOR WAITFORACK
+    public static void waitForAck(DatagramSocket socket, int expectedSeqNum) throws IOException {
+        boolean ackReceived = false;
+        while (!ackReceived) {
+            byte[] ackBuffer = new byte[HEADER_SIZE];
+            DatagramPacket ackReceivePacket = new DatagramPacket(ackBuffer, ackBuffer.length);
+            socket.receive(ackReceivePacket);
+
+            // Extract the sequence number from the acknowledgement header
+            int seqNum = Protocol.getSeqNum(ackReceivePacket.getData());
+
+            if (seqNum == expectedSeqNum) {
+                System.out.println("Acknowledgement received with seqnum: " + seqNum);
+                ackReceived = true;
+            } else {
+                System.out.println("Unexpected acknowledgement received with seqnum: " + seqNum);
+            }
+        }
     }
 
 }
