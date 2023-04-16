@@ -50,6 +50,7 @@ public class Client {
                     System.out.println("seqnum" + seqNum);
                     System.out.println("acknum" + ackNum);
                     ackReceived = true;
+                    socket.setSoTimeout(0); // 5 seconds
                 } catch (SocketTimeoutException e) {
                     System.out.println("Acknowledgement not received, trying again...");
                     tries++;

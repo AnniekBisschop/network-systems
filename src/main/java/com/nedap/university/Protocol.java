@@ -3,7 +3,6 @@ package com.nedap.university;
 import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
-import java.nio.ByteBuffer;
 
 public class Protocol {
 
@@ -94,11 +93,12 @@ public class Protocol {
         System.out.println("Ack sent with seqnum: " + seqNum);
     }
 
-    public static void receiveAck(DatagramSocket socket, DatagramPacket receivePacket, int seqNum) throws IOException {
+    public static DatagramPacket receiveAck(DatagramSocket socket, DatagramPacket receivePacket, int seqNum) throws IOException {
         byte[] ackBuffer = new byte[HEADER_SIZE];
         DatagramPacket ackPacket = new DatagramPacket(ackBuffer, HEADER_SIZE);
         socket.receive(ackPacket);
         System.out.println("Ack received with seqnum: " + seqNum);
+        return ackPacket;
     }
 
     //TODO IMPLEMENTATION FOR WAITFORACK

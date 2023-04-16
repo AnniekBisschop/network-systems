@@ -21,7 +21,8 @@ public class Server {
     private static final int PAYLOAD_SIZE = 1024;
 
 
-    public void start() {
+
+    public static void start() {
         try {
             // create a DatagramSocket that listens on port 9090
             DatagramSocket socket = new DatagramSocket(9090);
@@ -62,9 +63,7 @@ public class Server {
 //                        replaceFileOnServer(socket, receivePacket, messageArray, seqNum);
                         break;
                     case "list":
-                        System.out.println("in list case");
                         listAllFilesOnServer(socket, receivePacket, seqNum);
-                        System.out.println("function finished");
                         break;
                     default:
                         System.out.println("Something went wrong..");
@@ -181,42 +180,44 @@ public class Server {
             System.out.println("Listing files on server");
 
             boolean ackReceived = false;
-            int maxTries = 3; // set maximum number of tries to send the hello packet
+            int maxTries = 3; // maximum number of times to try to send the packet
             int tries = 0; // initialize the number of tries
 
             while (!ackReceived && tries < maxTries) {
                 try {
-                    if (tries > 0) {
-                        System.out.println("packet retransmitted...");
-                    }
-
-                    Protocol.sendAck(socket, receivePacket, seqNum);
-
-                    // Create the response message containing the file list
+                    //Create the response message containing the file list
                     String fileString = String.join("\n", fileList);
                     String responseMessage = "Here are the files in the directory:\n" + fileString;
-                    // send a response to the client indicating the remove was successful
                     responsePacket = Protocol.createResponsePacket(responseMessage, socket, receivePacket, 1);
                     socket.send(responsePacket);
-
-                    System.out.println("Packet length: " + responsePacket.getLength());
                     System.out.println("list sent to client");
+                    // wait for acknowledgement from client
+                    socket.setSoTimeout(2000); // set the timeout to 5 seconds waiting for client answer
 
-                    //wait for ack client
-                    Protocol.receiveAck(socket,receivePacket,seqNum);
-                    System.out.println("acknowledgement for list received");
-                    ackReceived = true;
-                } catch (SocketTimeoutException e) {
-                    System.out.println("Acknowledgement not received, trying again...");
-                    tries++;
-                    if (tries == maxTries) {
-                        System.out.println("Please try to make a new connection to the server. Program stopped: " + e.getMessage());
+                    DatagramPacket ackPacket = Protocol.receiveAck(socket, receivePacket, seqNum);
+                    seqNum = Protocol.getSeqNum(ackPacket.getData());
+                    System.out.println("acknowledgement for list received seqnum =" + seqNum );
+
+                    if (seqNum == 1) {
+                        System.out.println("Acknowledgement received.");
+                        ackReceived = true;
+                        socket.setSoTimeout(0);
+                    } else {
+                        System.out.println("Invalid acknowledgement received.");
                     }
+                } catch (SocketTimeoutException e) {
+                    System.out.println("Timeout waiting for acknowledgement. Retrying...");
+                    tries++;
+                     // continue the while loop to retry
                 } catch (IOException e) {
-                    System.out.println("Please try to make a new connection to the server. Program stopped.");
-                    System.out.println("IOException occurred while communicating with server: " + e.getMessage());
-                    System.exit(1);
+                    System.out.println("IOException occurred while communicating with client: " + e.getMessage());
+                    break;
                 }
+            }
+            // If we have reached the maximum number of attempts without receiving an acknowledgement, display an error message
+            if (tries == maxTries) {
+                System.out.println("Failed to receive acknowledgement after " + maxTries + " attempts.");
+
             }
         }
     }
