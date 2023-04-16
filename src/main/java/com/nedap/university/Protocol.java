@@ -101,6 +101,17 @@ public class Protocol {
         return ackPacket;
     }
 
+    public static byte[] receiveData(DatagramSocket socket, int headerLength) throws IOException {
+        byte[] receiveData = new byte[1024];
+        DatagramPacket receivePacket = new DatagramPacket(receiveData, receiveData.length);
+        socket.receive(receivePacket);
+        byte[] responseData = receivePacket.getData();
+        int messageLength = responseData.length - headerLength;
+        byte[] messageData = new byte[messageLength];
+        System.arraycopy(responseData, headerLength, messageData, 0, messageLength);
+        return messageData;
+    }
+
     //TODO IMPLEMENTATION FOR WAITFORACK
     public static void waitForAck(DatagramSocket socket, int expectedSeqNum) throws IOException {
         boolean ackReceived = false;

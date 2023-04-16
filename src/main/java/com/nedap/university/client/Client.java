@@ -94,10 +94,10 @@ public class Client {
                         uploadFile(socket, serverAddress, in);
                         break;
                     case "2":
-                        downloadFile(socket, serverAddress, in);
+                        downloadFile(socket, serverAddress, in, receivePacket, seqNum);
                         break;
                     case "3":
-                        removeFile(socket, serverAddress, in);
+                        removeFile(socket, serverAddress, in, receivePacket, seqNum);
                         break;
                     case "4":
 //                        replaceFile(socket, serverAddress, in);
@@ -179,7 +179,7 @@ public class Client {
             int numPackets = (int) Math.ceil(file.length() / (double) PAYLOAD_SIZE);
             System.out.println("number of Packets is: " + numPackets);
 
-            byte[] header = Protocol.createHeader(0,  1);
+            byte[] header = Protocol.createHeader(0,  0);
             String message = "upload " + file.getName() + " " + numPackets;
             commandRequestToServer(socket, serverAddress, header, message);
 
@@ -314,15 +314,22 @@ public class Client {
     }
 
 
-    private static void downloadFile(DatagramSocket socket, InetAddress serverAddress, BufferedReader in) throws IOException {
+    private static void downloadFile(DatagramSocket socket, InetAddress serverAddress, BufferedReader in, DatagramPacket receivePacket, int seqNum) throws IOException {
         // send download request to server
         System.out.print("Enter path to file you want to download: ");
         String fileName = in.readLine();
         File file = new File(fileName);
 
-        byte[] header = Protocol.createHeader(0,  1);
+        byte[] header = Protocol.createHeader(0,  0);
         String message = "download " + file.getName();
         commandRequestToServer(socket, serverAddress, header, message);
+
+        Protocol.receiveAck(socket,receivePacket,seqNum);
+        System.out.println("Ack received from download req");
+
+        byte[] receiveData = Protocol.receiveData(socket, header.length);
+        String response = new String(receiveData);
+        System.out.println("Received message: " + response.trim());
 
 //        try {
 //
@@ -382,11 +389,8 @@ public class Client {
     }
 
 
-private static void removeFile(DatagramSocket socket, InetAddress serverAddress, BufferedReader in) {
+private static void removeFile(DatagramSocket socket, InetAddress serverAddress, BufferedReader in, DatagramPacket receivePacket, int seqNum) {
     try {
-
-        //TODO CHECK THIS FUNCTION BECAUSE RECEIVEACKFROMSERVER HAS CHANGED!!!
-        // send remove request to server
         System.out.print("Enter name of file you want to remove: ");
         String fileName = in.readLine();
 
@@ -400,13 +404,14 @@ private static void removeFile(DatagramSocket socket, InetAddress serverAddress,
 
         while (!ackReceived && numRetries < maxRetries) {
             commandRequestToServer(socket, serverAddress, header, message);
-            System.out.println("remove req send");
+            System.out.println("remove request sent");
 //
             // Receive ack from server with a timeout of 5 seconds
             try {
                 socket.setSoTimeout(5000); // set the socket timeout to 5 seconds
-                receiveAckFromServer(socket, expectedSeqNum);
+                Protocol.receiveAck(socket,receivePacket,seqNum);
                 ackReceived = true; // set the flag to true if the ack is received
+                socket.setSoTimeout(0);
             } catch (SocketTimeoutException e) {
                 numRetries++; // increment the retry count if the timeout occurs
                 System.out.println("Timeout occurred, retrying...");
@@ -420,27 +425,15 @@ private static void removeFile(DatagramSocket socket, InetAddress serverAddress,
             System.out.println("Returning to main menu, please try again...");
             return; // exit the method and return to the main menu
         }
-
         // Receive response from server
-        byte[] receiveData = new byte[1024];
-        DatagramPacket receivePacket = new DatagramPacket(receiveData, receiveData.length);
-        socket.receive(receivePacket);
-        byte[] responseData = receivePacket.getData();
-        int messageLength = responseData.length - header.length;
-        byte[] messageData = new byte[messageLength];
-        System.arraycopy(responseData, header.length, messageData, 0, messageLength);
-
-        String response = new String(messageData);
+        byte[] receiveData = Protocol.receiveData(socket, header.length);
+        String response = new String(receiveData);
         System.out.println("Received message: " + response.trim());
 
     } catch (IOException e) {
         System.out.println("Error occurred while trying to remove file from server: " + e.getMessage());
     }
 }
-
-
-
-
     private static void commandRequestToServer(DatagramSocket socket, InetAddress serverAddress, byte[] header, String message) throws IOException {
         byte[] commandBuffer = message.getBytes();
         byte[] command = new byte[header.length + commandBuffer.length];
@@ -556,8 +549,6 @@ private static void showList(DatagramSocket socket, InetAddress serverAddress, D
         e.printStackTrace();
     }
 }
-
-
 private static void printMenu(){
         System.out.println("\nMenu Options:");
         System.out.println("1. Upload a file");

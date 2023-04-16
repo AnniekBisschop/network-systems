@@ -224,28 +224,22 @@ public class Server {
 
 
     private static void downloadFromServer(DatagramSocket socket, DatagramPacket receivePacket, String[] messageArray, int seqNum) throws IOException {
-//        if (messageArray.length < 2) {
-//            // log an error and send an error response to the client
-//            System.err.println("Received invalid download request from client " + receivePacket.getAddress() + ":" + receivePacket.getPort());
-//            String errorResponse = "Invalid download request";
-//            byte[] responseBuffer = errorResponse.getBytes();
-//            DatagramPacket responsePacket = new DatagramPacket(responseBuffer, responseBuffer.length, receivePacket.getAddress(), receivePacket.getPort());
-//            socket.send(responsePacket);
-//            return;
-//        }
-//
-//        // log that the download request has been received
-//        System.out.println("Received download request from client " + receivePacket.getAddress() + ":" + receivePacket.getPort());
-//        String fileName = messageArray[1];
-//        File file = new File("/home/pi/data/" + fileName);
-//
-//        if (!file.exists()) {
-//            // send a response to the client indicating that the file does not exist
-//            String errorResponse = "File does not exist";
-//            byte[] responseBuffer = errorResponse.getBytes();
-//            DatagramPacket responsePacket = new DatagramPacket(responseBuffer, responseBuffer.length, receivePacket.getAddress(), receivePacket.getPort());
-//            socket.send(responsePacket);
-//        } else {
+        DatagramPacket responsePacket;
+        System.out.println("Received download request from client " + receivePacket.getAddress() + ":" + receivePacket.getPort());
+
+        Protocol.sendAck(socket, receivePacket, seqNum +1);
+        System.out.println("ACK sent for download req");
+        String fileName = messageArray[1];
+        File file = new File("/home/pi/data/" + fileName);
+
+        if (!file.exists()) {
+            // send a response to the client indicating that the file does not exist
+            String message = "File does not exist";
+            responsePacket = Protocol.createResponsePacket(message, socket, receivePacket, 1);
+            socket.send(responsePacket);
+
+        }
+        //else {
 //            // send a response to the client indicating that the server is ready to send the file
 //            String uploadResponse = "Ready to send file " + fileName;
 //            System.out.println("ready to send file " + fileName);
