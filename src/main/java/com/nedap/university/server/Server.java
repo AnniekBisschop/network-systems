@@ -230,14 +230,18 @@ public class Server {
         Protocol.sendAck(socket, receivePacket, seqNum +1);
         System.out.println("ACK sent for download req");
         String fileName = messageArray[1];
-        File file = new File("/home/pi/data/" + fileName);
+        File file = new File(pathToDirectory + fileName);
 
         if (!file.exists()) {
             // send a response to the client indicating that the file does not exist
             String message = "File does not exist";
             responsePacket = Protocol.createResponsePacket(message, socket, receivePacket, 1);
             socket.send(responsePacket);
-
+        } else {
+            String message = "Ready to send file " + fileName;
+            System.out.println("ready to send file " + fileName);
+            responsePacket = Protocol.createResponsePacket(message, socket, receivePacket, 1);
+            socket.send(responsePacket);
         }
         //else {
 //            // send a response to the client indicating that the server is ready to send the file
