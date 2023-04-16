@@ -72,7 +72,7 @@ public class Protocol {
         return new DatagramPacket(response, response.length, receivePacket.getAddress(), receivePacket.getPort());
     }
 
-    public static void sendServerAck(DatagramSocket socket, DatagramPacket receivePacket, int seqNum) throws IOException {
+    public static void sendAck(DatagramSocket socket, DatagramPacket receivePacket, int seqNum) throws IOException {
         // Create a header with the sequence number and acknowledgement number
         byte[] ackHeader = createHeader(seqNum, seqNum + 1);
 

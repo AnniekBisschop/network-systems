@@ -82,7 +82,7 @@ public class Server {
         DatagramPacket responsePacket;
         System.out.println("Hello message received from " + receivePacket.getAddress());
         // Send an acknowledgement
-        Protocol.sendServerAck(socket, receivePacket, seqNum);
+        Protocol.sendAck(socket, receivePacket, seqNum);
         // send a response with available options
         System.out.println("Menu options sent to client");
         responsePacket = Protocol.createResponsePacket("Welcome, You have successfully connected to the server.", socket, receivePacket, 1);
@@ -92,7 +92,7 @@ public class Server {
     public static void uploadFileToServer(DatagramSocket socket, DatagramPacket receivePacket, String[] messageArray, int seqNum) throws IOException {
         // log that the remove request has been received
         System.out.println("Received upload request from client " + receivePacket.getAddress() + ":" + receivePacket.getPort());
-        Protocol.sendServerAck(socket, receivePacket, seqNum);
+        Protocol.sendAck(socket, receivePacket, seqNum);
         System.out.println("File to upload: " + messageArray[1]);
 
         // remove file from server
@@ -118,7 +118,7 @@ public class Server {
             numPacketsReceived++;
             System.out.println("Packet received: " + numPacketsReceived + ", seqnum: " + packetSeqNum);
             // send an ACK to the client
-            Protocol.sendServerAck(socket, receivePacket, packetSeqNum);
+            Protocol.sendAck(socket, receivePacket, packetSeqNum);
 
 
             // write the payload to the output file starting after the header (i.e., from byte 4)
@@ -143,7 +143,7 @@ public class Server {
         byte[] responseBuffer;
         // log that the remove request has been received
         System.out.println("Received remove request from client " + receivePacket.getAddress() + ":" + receivePacket.getPort());
-        Protocol.sendServerAck(socket, receivePacket, seqNum);
+        Protocol.sendAck(socket, receivePacket, seqNum);
         System.out.println("File to remove: " + messageArray[1]);
 
         // remove file from server
@@ -190,7 +190,7 @@ public class Server {
                         System.out.println("packet retransmitted...");
                     }
 
-                    Protocol.sendServerAck(socket, receivePacket, seqNum);
+                    Protocol.sendAck(socket, receivePacket, seqNum);
 
                     // Create the response message containing the file list
                     String fileString = String.join("\n", fileList);
