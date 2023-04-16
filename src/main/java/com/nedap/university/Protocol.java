@@ -15,11 +15,14 @@ public class Protocol {
      * which are both 4 bytes long.
      */
     public static byte[] createHeader(int seqNum, int ackNum) {
+        //The first line of the method creates a new byte array called header with a length of HEADER_SIZE.
         byte[] header = new byte[HEADER_SIZE];
+        //set the first four bytes of the header array to the four bytes of the seqNum parameter, extract each byte.
         header[0] = (byte) ((seqNum >> 24) & 0xFF);
         header[1] = (byte) ((seqNum >> 16) & 0xFF);
         header[2] = (byte) ((seqNum >> 8) & 0xFF);
         header[3] = (byte) ((seqNum) & 0xFF);
+        //set the next three bytes of the header array to the three bytes of the ackNum parameter
         header[4] = (byte) ((ackNum >> 24) & 0xFF);
         header[5] = (byte) ((ackNum >> 16) & 0xFF);
         header[6] = (byte) ((ackNum >> 8) & 0xFF);

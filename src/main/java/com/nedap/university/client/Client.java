@@ -1,5 +1,7 @@
 package com.nedap.university.client;
 
+import com.nedap.university.Protocol;
+
 import java.io.*;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
@@ -127,7 +129,7 @@ public class Client {
 
     private static void sendHelloPacketToServer(DatagramSocket socket, InetAddress serverAddress){
         // create the header
-        byte[] header = createHeader(0,0);
+        byte[] header = Protocol.createHeader(0,0);
 
         // create the data string and convert it to a byte array
         String dataString = "Hello";
@@ -147,21 +149,6 @@ public class Client {
         }
     }
 
-    private static byte[] createHeader(int seqNum, int ackNum) {
-        //The first line of the method creates a new byte array called header with a length of HEADER_SIZE.
-        byte[] header = new byte[HEADER_SIZE];
-        //set the first four bytes of the header array to the four bytes of the seqNum parameter, extract each byte.
-        header[0] = (byte) ((seqNum >> 24) & 0xFF);
-        header[1] = (byte) ((seqNum >> 16) & 0xFF);
-        header[2] = (byte) ((seqNum >> 8) & 0xFF);
-        header[3] = (byte) ((seqNum) & 0xFF);
-        //set the next three bytes of the header array to the three bytes of the ackNum parameter
-        header[4] = (byte) ((ackNum >> 24) & 0xFF);
-        header[5] = (byte) ((ackNum >> 16) & 0xFF);
-        header[6] = (byte) ((ackNum >> 8) & 0xFF);
-        header[7] = (byte) ((ackNum) & 0xFF);
-        return header;
-    }
     private static int getSeqNum(byte[] header) {
         ByteBuffer byteBuffer = ByteBuffer.wrap(header);
         return byteBuffer.getInt();
@@ -201,7 +188,7 @@ public class Client {
             int numPackets = (int) Math.ceil(file.length() / (double) PAYLOAD_SIZE);
             System.out.println("number of Packets is: " + numPackets);
 
-            byte[] header = createHeader(0,  1);
+            byte[] header = Protocol.createHeader(0,  1);
             String message = "upload " + file.getName() + " " + numPackets;
             commandRequestToServer(socket, serverAddress, header, message);
 
@@ -246,7 +233,7 @@ public class Client {
                 while (fileInputStream.read(payload) != -1) {
 
                     // create the packet header
-                    header = createHeader(seqNum, seqNum + 1);
+                    header = Protocol.createHeader(seqNum, seqNum + 1);
                     // create the packet
                     byte[] packet = createPacket(header, payload);
 
@@ -285,7 +272,7 @@ public class Client {
                 fileInputStream.close();
 
                 // send end of file packet
-                header = createHeader(seqNum, seqNum + 1);
+                header = Protocol.createHeader(seqNum, seqNum + 1);
                 byte[] eofPacket = createPacket(header, new byte[0]);
                 DatagramPacket sendPacket = new DatagramPacket(eofPacket, eofPacket.length, serverAddress, PORT);
                 socket.send(sendPacket);
@@ -342,7 +329,7 @@ public class Client {
         String fileName = in.readLine();
         File file = new File(fileName);
 
-        byte[] header = createHeader(0,  1);
+        byte[] header = Protocol.createHeader(0,  1);
         String message = "download " + file.getName();
         commandRequestToServer(socket, serverAddress, header, message);
 
@@ -413,7 +400,7 @@ private static void removeFile(DatagramSocket socket, InetAddress serverAddress,
         String fileName = in.readLine();
 
         // Send remove request to server
-        byte[] header = createHeader(1, 0);
+        byte[] header = Protocol.createHeader(1, 0);
         String message = "remove " + fileName;
         int expectedSeqNum = getSeqNum(header);
         boolean ackReceived = false;
@@ -549,7 +536,7 @@ private static void removeFile(DatagramSocket socket, InetAddress serverAddress,
 private static void showList(DatagramSocket socket, InetAddress serverAddress) {
     try {
         // Send list request to server
-        byte[] header = createHeader(1, 0);
+        byte[] header = Protocol.createHeader(1, 0);
         String listMessage = "list";
         byte[] listBuffer = listMessage.getBytes();
         byte[] request = new byte[header.length + listBuffer.length];
@@ -572,7 +559,7 @@ private static void showList(DatagramSocket socket, InetAddress serverAddress) {
         System.out.println("length packet " + listPacketResponse.getLength());
 
         // Send acknowledgment back to the server
-        byte[] ackResponse = createHeader(2, 0); // Acknowledgment header
+        byte[] ackResponse = Protocol.createHeader(2, 0); // Acknowledgment header
         DatagramPacket ackPacketResponse = new DatagramPacket(ackResponse, ackResponse.length, serverAddress, PORT);
         socket.send(ackPacketResponse);
         System.out.println("Ack sent");
