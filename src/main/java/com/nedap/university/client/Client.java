@@ -91,7 +91,7 @@ public class Client {
                         uploadFile(socket, serverAddress, in);
                         break;
                     case "2":
-//                        downloadFile(socket, serverAddress, in);
+                        downloadFile(socket, serverAddress, in);
                         break;
                     case "3":
                         removeFile(socket, serverAddress, in);
@@ -162,14 +162,6 @@ public class Client {
         header[7] = (byte) ((ackNum) & 0xFF);
         return header;
     }
-
-//    private static byte[] createHeader(int seqNum, int ackNum) {
-//        byte[] header = new byte[HEADER_SIZE];
-//        ByteBuffer buffer = ByteBuffer.wrap(header);
-//        buffer.putInt(seqNum);
-//        buffer.putInt(ackNum);
-//        return header;
-//    }
     private static int getSeqNum(byte[] header) {
         ByteBuffer byteBuffer = ByteBuffer.wrap(header);
         return byteBuffer.getInt();
@@ -344,9 +336,18 @@ public class Client {
     }
 
 
-//    private static void downloadFile(DatagramSocket socket, InetAddress serverAddress, BufferedReader in) {
+    private static void downloadFile(DatagramSocket socket, InetAddress serverAddress, BufferedReader in) throws IOException {
+        // send download request to server
+        System.out.print("Enter path to file you want to download: ");
+        String fileName = in.readLine();
+        File file = new File(fileName);
+
+        byte[] header = createHeader(0,  1);
+        String message = "download " + file.getName();
+        commandRequestToServer(socket, serverAddress, header, message);
+
 //        try {
-//            // send download request to server
+//
 //            System.out.print("Enter name of file you want to download: ");
 //            String downloadMessage = "download " + in.readLine();
 //            byte[] downloadBuffer = downloadMessage.getBytes();
@@ -400,9 +401,9 @@ public class Client {
 //        } catch (IOException e) {
 //            e.printStackTrace();
 //        }
-//    }
-//
-//
+    }
+
+
 private static void removeFile(DatagramSocket socket, InetAddress serverAddress, BufferedReader in) {
     try {
 
@@ -459,18 +460,7 @@ private static void removeFile(DatagramSocket socket, InetAddress serverAddress,
     }
 }
 
-        // Receive response from server
-//        byte[] responseBuffer = new byte[1024];
-//        DatagramPacket responsePacket = new DatagramPacket(responseBuffer, responseBuffer.length);
-//        socket.receive(responsePacket);
-//        String responseRemove = new String(responsePacket.getData(), 0, responsePacket.getLength());
-//        if (responseRemove.contains("File removed successfully")) {
-//            System.out.println("File removed successfully");
-//        } else if (responseRemove.contains("File not found")) {
-//            System.out.println("File not found on server.");
-//        } else {
-//            System.err.println("Received unexpected response from server: " + responseRemove);
-//        }
+
 
 
     private static void commandRequestToServer(DatagramSocket socket, InetAddress serverAddress, byte[] header, String message) throws IOException {

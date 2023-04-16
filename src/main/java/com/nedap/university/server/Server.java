@@ -1,5 +1,7 @@
 package com.nedap.university.server;
 
+import com.nedap.university.Protocol;
+
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -13,7 +15,7 @@ import java.nio.file.Files;
 public class Server {
 
     private static final int BUFFER_SIZE = 1024;
-    private static final int HEADER_SIZE = 8; // 4 bytes for seq, 4 bytes for ack
+    private static final int HEADER_SIZE = 8;
     //pi: "home/pi/data"
     private static final String pathToDirectory = "/Users/anniek.bisschop/Networking/network-systems/src/main/java/com/nedap/university/data/";
     private static final int PAYLOAD_SIZE = 1024;
@@ -51,7 +53,7 @@ public class Server {
                         uploadFileToServer(socket, receivePacket, messageArray, seqNum);
                         break;
                     case "download":
-//                        downloadFromServer(socket, receivePacket, messageArray, seqNum);
+                        downloadFromServer(socket, receivePacket, messageArray, seqNum);
                         break;
                     case "remove":
                         removeFileOnServer(socket, receivePacket, messageArray, seqNum);
@@ -80,40 +82,16 @@ public class Server {
         DatagramPacket responsePacket;
         System.out.println("Hello message received from " + receivePacket.getAddress());
         // Send an acknowledgement
-        sendServerAck(socket, receivePacket, seqNum);
+        Protocol.sendServerAck(socket, receivePacket, seqNum);
         // send a response with available options
         System.out.println("Menu options sent to client");
-        responsePacket = createResponsePacket("Welcome, You have successfully connected to the server.", socket, receivePacket, 1);
+        responsePacket = Protocol.createResponsePacket("Welcome, You have successfully connected to the server.", socket, receivePacket, 1);
         socket.send(responsePacket);
     }
 
-    /**
-     * This method takes in two integer parameters, seqNum and ackNum, and returns a byte array of size HEADER_SIZE,
-     * which is a constant set to 8.
-     * Create a header for a packet that includes the sequence number and acknowledgement number,
-     * which are both 4 bytes long.
-     */
-    private static byte[] createHeader(int seqNum, int ackNum) {
-        byte[] header = new byte[HEADER_SIZE];
-        header[0] = (byte) ((seqNum >> 24) & 0xFF);
-        header[1] = (byte) ((seqNum >> 16) & 0xFF);
-        header[2] = (byte) ((seqNum >> 8) & 0xFF);
-        header[3] = (byte) ((seqNum) & 0xFF);
-        header[4] = (byte) ((ackNum >> 24) & 0xFF);
-        header[5] = (byte) ((ackNum >> 16) & 0xFF);
-        header[6] = (byte) ((ackNum >> 8) & 0xFF);
-        header[7] = (byte) ((ackNum) & 0xFF);
-        return header;
-    }
 
-    private static DatagramPacket createResponsePacket(String message, DatagramSocket socket, DatagramPacket receivePacket, int seqNum) {
-        byte[] header = createHeader(seqNum, 0);
-        byte[] responseBuffer = message.getBytes();
-        byte[] response = new byte[header.length + responseBuffer.length];
-        System.arraycopy(header, 0, response, 0, header.length);
-        System.arraycopy(responseBuffer, 0, response, header.length, responseBuffer.length);
-        return new DatagramPacket(response, response.length, receivePacket.getAddress(), receivePacket.getPort());
-    }
+
+
 
     private static int getSeqNum(byte[] header) {
         return (header[0] << 24) & 0xFF000000 |
@@ -137,7 +115,7 @@ public class Server {
     public static void uploadFileToServer(DatagramSocket socket, DatagramPacket receivePacket, String[] messageArray, int seqNum) throws IOException {
         // log that the remove request has been received
         System.out.println("Received upload request from client " + receivePacket.getAddress() + ":" + receivePacket.getPort());
-        sendServerAck(socket, receivePacket, seqNum);
+        Protocol.sendServerAck(socket, receivePacket, seqNum);
         System.out.println("File to upload: " + messageArray[1]);
 
         // remove file from server
@@ -163,7 +141,7 @@ public class Server {
             numPacketsReceived++;
             System.out.println("Packet received: " + numPacketsReceived + ", seqnum: " + packetSeqNum);
             // send an ACK to the client
-            sendServerAck(socket, receivePacket, packetSeqNum);
+            Protocol.sendServerAck(socket, receivePacket, packetSeqNum);
 
 
             // write the payload to the output file starting after the header (i.e., from byte 4)
@@ -173,7 +151,7 @@ public class Server {
 
         // send end of file ack
         String eofMessage = "End of file received";
-        DatagramPacket eofPacket = createResponsePacket(eofMessage, socket, receivePacket, seqNum);
+        DatagramPacket eofPacket = Protocol.createResponsePacket(eofMessage, socket, receivePacket, seqNum);
         socket.send(eofPacket);
         System.out.println("End of file message sent");
         // close the FileOutputStream and print a message
@@ -181,20 +159,14 @@ public class Server {
         fileOutputStream.close();
     }
 
-    private static void sendServerAck(DatagramSocket socket, DatagramPacket receivePacket, int seqNum) throws IOException {
-        // Send an acknowledgement
-        byte[] ackHeader = createHeader(seqNum, seqNum + 1);
-        DatagramPacket ackPacket = new DatagramPacket(ackHeader, ackHeader.length, receivePacket.getAddress(), receivePacket.getPort());
-        socket.send(ackPacket);
-        System.out.println("Ack send with seqnum: " + seqNum);
-    }
+
 
     private static void removeFileOnServer(DatagramSocket socket, DatagramPacket receivePacket, String[] messageArray, int seqNum) throws IOException {
         DatagramPacket responsePacket;
         byte[] responseBuffer;
         // log that the remove request has been received
         System.out.println("Received remove request from client " + receivePacket.getAddress() + ":" + receivePacket.getPort());
-        sendServerAck(socket, receivePacket, seqNum);
+        Protocol.sendServerAck(socket, receivePacket, seqNum);
         System.out.println("File to remove: " + messageArray[1]);
 
         // remove file from server
@@ -206,16 +178,16 @@ public class Server {
                 Files.delete(fileToRemove.toPath());
                 System.out.println("file removed successfully");
                 // send a response to the client indicating the remove was successful
-                responsePacket = createResponsePacket("File removed successfully", socket, receivePacket, 1);
+                responsePacket = Protocol.createResponsePacket("File removed successfully", socket, receivePacket, 1);
                 socket.send(responsePacket);
             } catch (IOException e) {
                 // send a response to the client indicating the remove failed due to an IO error
-                responsePacket = createResponsePacket("Failed to remove file due to IO error", socket, receivePacket, 1);
+                responsePacket = Protocol.createResponsePacket("Failed to remove file due to IO error", socket, receivePacket, 1);
                 socket.send(responsePacket);
             }
         } else {
             // send a response to the client indicating the file was not found on the server
-            responsePacket = createResponsePacket("File not found on server", socket, receivePacket, 1);
+            responsePacket = Protocol.createResponsePacket("File not found on server", socket, receivePacket, 1);
             socket.send(responsePacket);
         }
     }
@@ -241,7 +213,7 @@ public class Server {
                         System.out.println("packet retransmitted...");
                     }
 
-                    byte[] ackHeader = createHeader(seqNum + 1, seqNum);
+                    byte[] ackHeader = Protocol.createHeader(seqNum + 1, seqNum);
                     DatagramPacket ackPacket = new DatagramPacket(ackHeader, HEADER_SIZE, receivePacket.getAddress(), receivePacket.getPort());
                     socket.send(ackPacket);
 
@@ -249,7 +221,7 @@ public class Server {
                     String fileString = String.join("\n", fileList);
                     String responseMessage = "Here are the files in the directory:\n" + fileString;
                     byte[] responseMessageBytes = responseMessage.getBytes();
-                    byte[] responseHeader = createHeader(seqNum + 2, seqNum + 1);
+                    byte[] responseHeader = Protocol.createHeader(seqNum + 2, seqNum + 1);
                     byte[] responseData = new byte[HEADER_SIZE + responseMessageBytes.length];
                     System.arraycopy(responseHeader, 0, responseData, 0, HEADER_SIZE);
                     System.arraycopy(responseMessageBytes, 0, responseData, HEADER_SIZE, responseMessageBytes.length);
@@ -280,7 +252,7 @@ public class Server {
     }
 
 
-//    private static void downloadFromServer(DatagramSocket socket, DatagramPacket receivePacket, String[] messageArray, int seqNum) throws IOException {
+    private static void downloadFromServer(DatagramSocket socket, DatagramPacket receivePacket, String[] messageArray, int seqNum) throws IOException {
 //        if (messageArray.length < 2) {
 //            // log an error and send an error response to the client
 //            System.err.println("Received invalid download request from client " + receivePacket.getAddress() + ":" + receivePacket.getPort());
@@ -329,7 +301,7 @@ public class Server {
 //
 //            fileInputStream.close();
 //        }
-//    }
+    }
 
 
     //
