@@ -200,12 +200,10 @@ public class Server {
                     socket.send(responsePacket);
 
                     System.out.println("Packet length: " + responsePacket.getLength());
-                    System.out.println("list send to client");
+                    System.out.println("list sent to client");
 
                     //wait for ack client
-                    byte[] ackBuffer = new byte[HEADER_SIZE];
-                    DatagramPacket ackReceivePacket = new DatagramPacket(ackBuffer, ackBuffer.length);
-                    socket.receive(ackReceivePacket);
+                    Protocol.receiveAck(socket,receivePacket,seqNum);
                     System.out.println("acknowledgement for list received");
                     ackReceived = true;
                 } catch (SocketTimeoutException e) {

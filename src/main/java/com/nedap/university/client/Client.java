@@ -526,21 +526,13 @@ private static void removeFile(DatagramSocket socket, InetAddress serverAddress,
 private static void showList(DatagramSocket socket, InetAddress serverAddress, DatagramPacket receivePacket, int seqNum) {
     try {
         // Send list request to server
-        byte[] header = Protocol.createHeader(1, 0);
-        String listMessage = "list";
-        byte[] listBuffer = listMessage.getBytes();
-        byte[] request = new byte[header.length + listBuffer.length];
-        System.arraycopy(header, 0, request, 0, header.length);
-        System.arraycopy(listBuffer, 0, request, header.length, listBuffer.length);
-        DatagramPacket listPacket = new DatagramPacket(request, request.length, serverAddress, PORT);
-        socket.send(listPacket);
-        System.out.println("list req send");
+        byte[] header = Protocol.createHeader(1,  0);
+        String message = "list";
+        commandRequestToServer(socket, serverAddress, header, message);
+        System.out.println("list request send");
 
         // Receive ack from server
-        byte[] ackBuffer = new byte[HEADER_SIZE];
-        DatagramPacket ackPacket = new DatagramPacket(ackBuffer, HEADER_SIZE);
-        socket.receive(ackPacket);
-        System.out.println("Ack received");
+       Protocol.receiveAck(socket,receivePacket,seqNum);
 
         // Receive list from server
         byte[] listBufferResponse = new byte[1024];
@@ -550,7 +542,7 @@ private static void showList(DatagramSocket socket, InetAddress serverAddress, D
 
         // Send acknowledgment back to the server
         Protocol.sendAck(socket, receivePacket, seqNum);
-        System.out.println("Ack sent with receivepacket: " + receivePacket + "seqnum: " + seqNum);
+        System.out.println("Ack sent with receivepacket: " + receivePacket.getLength() + "seqnum: " + seqNum);
 
         // Extract and print file list
         byte[] data = listPacketResponse.getData();

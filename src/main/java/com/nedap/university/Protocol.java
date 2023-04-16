@@ -63,12 +63,22 @@ public class Protocol {
 //        return byteBuffer.getInt();
 //    }
 
+    //method for String/messages
     public static DatagramPacket createResponsePacket(String message, DatagramSocket socket, DatagramPacket receivePacket, int seqNum) {
         byte[] header = createHeader(seqNum, 0);
         byte[] responseBuffer = message.getBytes();
         byte[] response = new byte[header.length + responseBuffer.length];
         System.arraycopy(header, 0, response, 0, header.length);
         System.arraycopy(responseBuffer, 0, response, header.length, responseBuffer.length);
+        return new DatagramPacket(response, response.length, receivePacket.getAddress(), receivePacket.getPort());
+    }
+
+    //method for bytes
+    public static DatagramPacket createResponsePacket(byte[] data, DatagramSocket socket, DatagramPacket receivePacket, int seqNum) {
+        byte[] header = createHeader(seqNum, 0);
+        byte[] response = new byte[header.length + data.length];
+        System.arraycopy(header, 0, response, 0, header.length);
+        System.arraycopy(data, 0, response, header.length, data.length);
         return new DatagramPacket(response, response.length, receivePacket.getAddress(), receivePacket.getPort());
     }
 
@@ -84,6 +94,12 @@ public class Protocol {
         System.out.println("Ack sent with seqnum: " + seqNum);
     }
 
+    public static void receiveAck(DatagramSocket socket, DatagramPacket receivePacket, int seqNum) throws IOException {
+        byte[] ackBuffer = new byte[HEADER_SIZE];
+        DatagramPacket ackPacket = new DatagramPacket(ackBuffer, HEADER_SIZE);
+        socket.receive(ackPacket);
+        System.out.println("Ack received with seqnum: " + seqNum);
+    }
 
     //TODO IMPLEMENTATION FOR WAITFORACK
     public static void waitForAck(DatagramSocket socket, int expectedSeqNum) throws IOException {
