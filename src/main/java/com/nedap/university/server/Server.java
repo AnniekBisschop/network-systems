@@ -119,7 +119,6 @@ public class Server {
             // send an ACK to the client
             Protocol.sendAck(socket, receivePacket, packetSeqNum);
 
-
             // write the payload to the output file starting after the header (i.e., from byte 4)
             fileOutputStream.write(filePacket.getData(), HEADER_SIZE, filePacket.getLength() - HEADER_SIZE);
             fileOutputStream.flush();

@@ -107,7 +107,6 @@ public class Protocol {
         byte[] ackBuffer = new byte[HEADER_SIZE];
         DatagramPacket ackPacket = new DatagramPacket(ackBuffer, HEADER_SIZE);
         socket.receive(ackPacket);
-        System.out.println("Ack received with seqnum: " + seqNum);
         return ackPacket;
     }
 

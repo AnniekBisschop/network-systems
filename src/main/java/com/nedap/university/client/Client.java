@@ -12,6 +12,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Arrays;
 
+
 /*
 * Datagram packets can be only bytes
 * */
@@ -214,25 +215,42 @@ public class Client {
 
             // set the maximum size of each packet to 1024 bytes
             int maxPacketSize = 1024;
-
-            // create and send packets for each chunk of the file data
             int seqNum = 0;
+            // create and send packets for each chunk of the file data
             for (int i = 0; i < fileData.length; i += maxPacketSize) {
+
+                //// Extract a portion of the file data as a new byte array starting from index i and up to a maximum of maxPacketSize bytes or less if the end of the file has been reached. The extracted portion is stored in chunkData, which can be sent as an individual packet.
                 byte[] chunkData = Arrays.copyOfRange(fileData, i, Math.min(i + maxPacketSize, fileData.length));
-                seqNum++;
                 DatagramPacket packet = Protocol.createResponsePacket(chunkData, socket, receivePacket, seqNum);
-                socket.send(packet);
+                seqNum++;
+                // send the packet and wait for the response with the expected sequence number
+                boolean receivedExpectedSeqNum = false;
+                while (!receivedExpectedSeqNum) {
+                    socket.send(packet);
+                    System.out.println("seq num send: " + seqNum);
+                    // wait for the ack packet with the expected sequence number
+                    DatagramPacket ackPacket = Protocol.receiveAck(socket, receivePacket, seqNum);
+
+                    int receivedSeqNum = Protocol.getSeqNum(ackPacket.getData());
+                    System.out.println("received seq num" + receivedSeqNum);
+
+                    if (receivedSeqNum == seqNum-1) {
+                        System.out.println("seq num is nu" + (seqNum-1));
+                        receivedExpectedSeqNum = true;
+                    }
+                }
             }
+
 
             // receive the response packets
-            byte[] responseBuffer = new byte[maxPacketSize];
-            DatagramPacket responsePacket = new DatagramPacket(responseBuffer, responseBuffer.length);
-            while (true) {
-                socket.receive(responsePacket);
-                // process the response packet
-                System.out.println("received");
-                socket.setSoTimeout(0);
-            }
+//            byte[] responseBuffer = new byte[maxPacketSize];
+//            DatagramPacket responsePacket = new DatagramPacket(responseBuffer, responseBuffer.length);
+//            while (true) {
+//                socket.receive(responsePacket);
+//                // process the response packet
+//                System.out.println("received");
+//                socket.setSoTimeout(0);
+//            }
 
         } catch (IOException e) {
             throw new RuntimeException(e);
