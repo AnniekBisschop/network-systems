@@ -89,12 +89,12 @@ public class Server {
     }
 
     public static void uploadFileToServer(DatagramSocket socket, DatagramPacket receivePacket, String[] messageArray, int seqNum) throws IOException {
+        DatagramPacket responsePacket;
         // log that the remove request has been received
         System.out.println("Received upload request from client " + receivePacket.getAddress() + ":" + receivePacket.getPort());
         Protocol.sendAck(socket, receivePacket, seqNum);
         System.out.println("File to upload: " + messageArray[1]);
 
-        // remove file from server
         String fileNameToUpload = messageArray[1];
         File fileToUpload = new File(pathToDirectory, fileNameToUpload);
         System.out.println("file to upload: " + fileToUpload);
@@ -108,27 +108,29 @@ public class Server {
         // create a FileOutputStream to write the data to a file
         FileOutputStream fileOutputStream = new FileOutputStream(fileToUpload);
 
+        socket.receive(receivePacket);
+        System.out.println("start receiving packets....");
         while (numPacketsReceived < Integer.parseInt(amountPackages)) {
-            socket.receive(receivePacket);
+
             // create a DatagramPacket to receive the packet from the client
             DatagramPacket filePacket = new DatagramPacket(buffer, buffer.length);
             socket.receive(filePacket);
             int packetSeqNum = Protocol.getSeqNum(filePacket.getData());
-            numPacketsReceived++;
             System.out.println("Packet received: " + numPacketsReceived + ", seqnum: " + packetSeqNum);
-            // send an ACK to the client
+            numPacketsReceived++;
+//            // send an ACK to the client
             Protocol.sendAck(socket, receivePacket, packetSeqNum);
 
-            // write the payload to the output file starting after the header (i.e., from byte 4)
+            // write the payload to the output file starting after the header
             fileOutputStream.write(filePacket.getData(), HEADER_SIZE, filePacket.getLength() - HEADER_SIZE);
             fileOutputStream.flush();
         }
 
-        // send end of file ack
-        String eofMessage = "End of file received";
-        DatagramPacket eofPacket = Protocol.createResponsePacket(eofMessage, socket, receivePacket, seqNum);
-        socket.send(eofPacket);
-        System.out.println("End of file message sent");
+//        // send end of file ack
+//        String eofMessage = "End of file received";
+//        DatagramPacket eofPacket = Protocol.createResponsePacket(eofMessage, socket, receivePacket, seqNum);
+//        socket.send(eofPacket);
+//        System.out.println("End of file message sent");
         // close the FileOutputStream and print a message
         System.out.println("File upload successful");
         fileOutputStream.close();

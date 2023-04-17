@@ -197,7 +197,9 @@ public class Client {
                 try {
                     socket.setSoTimeout(5000);
                     receiveAckFromServer(socket, expectedSeqNum);
+                    System.out.println("upload ack packet received from server");
                     ackReceived = true;
+                    socket.setSoTimeout(0);
                 } catch (SocketTimeoutException e) {
                     numRetries++;
                     System.out.println("Timeout occurred, retrying...");
@@ -216,27 +218,29 @@ public class Client {
             // set the maximum size of each packet to 1024 bytes
             int maxPacketSize = 1024;
             int seqNum = 0;
+
             // create and send packets for each chunk of the file data
             for (int i = 0; i < fileData.length; i += maxPacketSize) {
-
-                //// Extract a portion of the file data as a new byte array starting from index i and up to a maximum of maxPacketSize bytes or less if the end of the file has been reached. The extracted portion is stored in chunkData, which can be sent as an individual packet.
+                // Extract a portion of the file data as a new byte array starting from index i and up to a maximum of maxPacketSize bytes or less if the end of the file has been reached.
                 byte[] chunkData = Arrays.copyOfRange(fileData, i, Math.min(i + maxPacketSize, fileData.length));
                 DatagramPacket packet = Protocol.createResponsePacket(chunkData, socket, receivePacket, seqNum);
-                seqNum++;
+
                 // send the packet and wait for the response with the expected sequence number
                 boolean receivedExpectedSeqNum = false;
                 while (!receivedExpectedSeqNum) {
                     socket.send(packet);
-                    System.out.println("seq num send: " + seqNum);
+                    System.out.println("Packet sent with seqnum " + seqNum);
+
                     // wait for the ack packet with the expected sequence number
                     DatagramPacket ackPacket = Protocol.receiveAck(socket, receivePacket, seqNum);
 
                     int receivedSeqNum = Protocol.getSeqNum(ackPacket.getData());
-                    System.out.println("received seq num" + receivedSeqNum);
+                    System.out.println("Received seq num: " + receivedSeqNum);
 
-                    if (receivedSeqNum == seqNum-1) {
-                        System.out.println("seq num is nu" + (seqNum-1));
+                    if (receivedSeqNum == seqNum) {
+                        System.out.println("Received ack with seqnum " + seqNum);
                         receivedExpectedSeqNum = true;
+                        seqNum++;
                     }
                 }
             }
