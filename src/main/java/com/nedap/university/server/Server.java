@@ -10,6 +10,8 @@ import java.net.DatagramSocket;
 import java.net.SocketTimeoutException;
 import java.nio.ByteBuffer;
 import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.util.Arrays;
 
 
 public class Server {
@@ -98,11 +100,10 @@ public class Server {
         String fileNameToUpload = messageArray[1];
         File fileToUpload = new File(pathToDirectory, fileNameToUpload);
         System.out.println("file to upload: " + fileToUpload);
-        String amountPackages = messageArray[2]+1;
-        System.out.println("packages to receive: " + amountPackages);
+        String amountPackages = messageArray[2] + 1;
 
         // create a buffer to hold the incoming data
-        byte[] buffer = new byte[PAYLOAD_SIZE];
+        byte[] buffer = new byte[PAYLOAD_SIZE + 8];
         int numPacketsReceived = 0;
 
         // create a FileOutputStream to write the data to a file
@@ -115,7 +116,8 @@ public class Server {
             // create a DatagramPacket to receive the packet from the client
             DatagramPacket filePacket = new DatagramPacket(buffer, buffer.length);
             socket.receive(filePacket);
-
+            byte[] receivedData = filePacket.getData();
+            System.out.println(new String(receivedData, HEADER_SIZE, filePacket.getLength() - HEADER_SIZE));
             // check if the packet contains the end-of-file message
             String packetData = new String(filePacket.getData(), 0, filePacket.getLength());
             if (packetData.contains("END_OF_FILE")) {
@@ -125,14 +127,14 @@ public class Server {
             }
 
             int packetSeqNum = Protocol.getSeqNum(filePacket.getData());
-            System.out.println("Packet received: " + numPacketsReceived + ", seqnum: " + packetSeqNum);
+//            System.out.println("Packet received: " + numPacketsReceived + ", seqnum: " + packetSeqNum);
             numPacketsReceived++;
-//            // send an ACK to the client
-            Protocol.sendAck(socket, receivePacket, packetSeqNum);
 
             // write the payload to the output file starting after the header
             fileOutputStream.write(filePacket.getData(), HEADER_SIZE, filePacket.getLength() - HEADER_SIZE);
             fileOutputStream.flush();
+            // send an ACK to the client
+            Protocol.sendAck(socket, receivePacket, packetSeqNum);
         }
 
 
