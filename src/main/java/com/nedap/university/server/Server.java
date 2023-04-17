@@ -98,7 +98,7 @@ public class Server {
         String fileNameToUpload = messageArray[1];
         File fileToUpload = new File(pathToDirectory, fileNameToUpload);
         System.out.println("file to upload: " + fileToUpload);
-        String amountPackages = messageArray[2];
+        String amountPackages = messageArray[2]+1;
         System.out.println("packages to receive: " + amountPackages);
 
         // create a buffer to hold the incoming data
@@ -115,6 +115,15 @@ public class Server {
             // create a DatagramPacket to receive the packet from the client
             DatagramPacket filePacket = new DatagramPacket(buffer, buffer.length);
             socket.receive(filePacket);
+
+            // check if the packet contains the end-of-file message
+            String packetData = new String(filePacket.getData(), 0, filePacket.getLength());
+            if (packetData.contains("END_OF_FILE")) {
+                // send an ACK to the client
+                Protocol.sendAck(socket, receivePacket, Protocol.getSeqNum(filePacket.getData()));
+                break;  // exit the loop to finish receiving the file
+            }
+
             int packetSeqNum = Protocol.getSeqNum(filePacket.getData());
             System.out.println("Packet received: " + numPacketsReceived + ", seqnum: " + packetSeqNum);
             numPacketsReceived++;
@@ -126,12 +135,7 @@ public class Server {
             fileOutputStream.flush();
         }
 
-//        // send end of file ack
-//        String eofMessage = "End of file received";
-//        DatagramPacket eofPacket = Protocol.createResponsePacket(eofMessage, socket, receivePacket, seqNum);
-//        socket.send(eofPacket);
-//        System.out.println("End of file message sent");
-        // close the FileOutputStream and print a message
+
         System.out.println("File upload successful");
         fileOutputStream.close();
 

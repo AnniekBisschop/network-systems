@@ -229,32 +229,29 @@ public class Client {
                 boolean receivedExpectedSeqNum = false;
                 while (!receivedExpectedSeqNum) {
                     socket.send(packet);
-                    System.out.println("Packet sent with seqnum " + seqNum);
+                    System.out.println("Packet sent seqnum: " + seqNum);
 
                     // wait for the ack packet with the expected sequence number
                     DatagramPacket ackPacket = Protocol.receiveAck(socket, receivePacket, seqNum);
 
                     int receivedSeqNum = Protocol.getSeqNum(ackPacket.getData());
-                    System.out.println("Received seq num: " + receivedSeqNum);
+                    System.out.println("Received seqnum: " + receivedSeqNum);
 
                     if (receivedSeqNum == seqNum) {
-                        System.out.println("Received ack with seqnum " + seqNum);
                         receivedExpectedSeqNum = true;
                         seqNum++;
                     }
                 }
             }
 
+            // send final packet with end-of-file message
+            byte[] eofMsg = "END_OF_FILE".getBytes();
+            DatagramPacket eofPacket = Protocol.createResponsePacket(eofMsg, socket, receivePacket, seqNum);
+            socket.send(eofPacket);
+            System.out.println("Final packet sent with seqnum " + seqNum);
 
-            // receive the response packets
-//            byte[] responseBuffer = new byte[maxPacketSize];
-//            DatagramPacket responsePacket = new DatagramPacket(responseBuffer, responseBuffer.length);
-//            while (true) {
-//                socket.receive(responsePacket);
-//                // process the response packet
-//                System.out.println("received");
-//                socket.setSoTimeout(0);
-//            }
+            Protocol.receiveAck(socket, receivePacket,seqNum);
+            System.out.println("End ack received");
 
         } catch (IOException e) {
             throw new RuntimeException(e);
