@@ -22,6 +22,7 @@ public class Client {
     private static final int PORT = 9090;
     private static final int HEADER_SIZE = 8; // 4 bytes for seq, 4 bytes for ack
     private static final int PAYLOAD_SIZE = 1024;
+    private static final String pathToDirectory = "/Users/anniek.bisschop/Networking/network-systems/src/main/java/com/nedap/university/download/";
     public static void main(String[] args) {
         DatagramSocket socket = null;
         try {
@@ -179,10 +180,13 @@ public class Client {
             }
             // calculate total number of packets to be sent
             int numPackets = (int) Math.ceil(file.length() / (double) PAYLOAD_SIZE);
+            byte[] fileData = Files.readAllBytes(Path.of(filePath));
             System.out.println("number of Packets is: " + numPackets);
+            String expectedHash = Protocol.getHash(fileData);
+
 
             byte[] header = Protocol.createHeader(0, 0);
-            String message = "upload " + file.getName() + " " + numPackets;
+            String message = "upload " + file.getName() + " " + numPackets + " " + expectedHash;
             commandRequestToServer(socket, serverAddress, header, message);
 
             int expectedSeqNum = Protocol.getSeqNum(header);
@@ -214,7 +218,7 @@ public class Client {
                 return; // exit the method and return to the main menu
             }
 
-            byte[] fileData = Files.readAllBytes(Path.of(filePath));
+
 
             // set the maximum size of each packet to 1024 bytes
             int maxPacketSize = 1024;
@@ -255,8 +259,10 @@ public class Client {
             }
     }
     private static void downloadFile(DatagramSocket socket, InetAddress serverAddress, BufferedReader in, DatagramPacket receivePacket, int seqNum) throws IOException {
+        showList(socket,serverAddress,receivePacket,seqNum);
+        System.out.println("Please enter a file that is on the list");
         // send download request to server
-        System.out.print("Enter path to file you want to download: ");
+        System.out.print("Filename: ");
         String fileName = in.readLine();
         File file = new File(fileName);
 
@@ -264,68 +270,51 @@ public class Client {
         String message = "download " + file.getName();
         commandRequestToServer(socket, serverAddress, header, message);
 
-        Protocol.receiveAck(socket,receivePacket,seqNum);
+        // receive the response from the server
+        Protocol.receiveAck(socket, receivePacket, seqNum);
         System.out.println("Ack received from download req");
-
         byte[] receiveData = Protocol.receiveData(socket, header.length);
         String response = new String(receiveData);
         System.out.println("Received message: " + response.trim());
 
-//        try {
-//
-//            System.out.print("Enter name of file you want to download: ");
-//            String downloadMessage = "download " + in.readLine();
-//            byte[] downloadBuffer = downloadMessage.getBytes();
-//            DatagramPacket downloadPacket = new DatagramPacket(downloadBuffer, downloadBuffer.length, serverAddress, 9090);
-//            socket.send(downloadPacket);
-//
-//            // receive response from server
-//            byte[] responseBuffer = new byte[1024];
-//            DatagramPacket responsePacket = new DatagramPacket(responseBuffer, responseBuffer.length);
-//            socket.receive(responsePacket);
-//            String responseDownload = new String(responsePacket.getData(), 0, responsePacket.getLength());
-//            System.out.println("responseDownload" + responseDownload);
-//            if (responseDownload.contains("File not found")) {
-//                System.out.println("File not found on server.");
-//                return;
-//            } else if (responseDownload.contains("Ready to send file")) {
-//                System.out.println("Server is ready to send file.");
-//            } else {
-//                System.err.println("Received unexpected response from server: " + responseDownload);
-//                return;
-//            }
-//
-//            // extract file name from server response
-//            String[] responseParts = responseDownload.split(" ");
-//            String fileName = responseParts[responseParts.length - 1];
-//
-//            // receive file from server in packets and write to local file system
-//            String filePath = "src/main/java/com/nedap/university/download/" + fileName;
-//            System.out.println("filepath " + filePath);
-//            FileOutputStream fileOutputStream = new FileOutputStream(filePath);
-//            byte[] fileBuffer = new byte[1024];
-//            int bytesRead = 0;
-//            int packetCount = 0;
-//            while (true) {
-//                DatagramPacket filePacket = new DatagramPacket(fileBuffer, fileBuffer.length);
-//                socket.receive(filePacket);
-//                System.out.println("packet received");
-//                String packetData = new String(filePacket.getData(), 0, filePacket.getLength());
-//                if (packetData.equals("end")) {
-//                    System.out.println("received end packet");
-//                    System.out.println("file sent successfully");
-//                    break;
-//                }
-//                packetCount++;
-//                System.out.println("Packetcount: " + packetCount);
-//                fileOutputStream.write(filePacket.getData(), 0, filePacket.getLength());
-//                System.out.println("File received in " + packetCount + " packets and saved to " + filePath + ".");
-//            }
-//            fileOutputStream.close();
-//
-//        } catch (IOException e) {
-//            e.printStackTrace();
-//        }
+
+        Protocol.receiveAck(socket,receivePacket,seqNum);
+
+        // create a File object to represent the downloaded file
+        file = new File(pathToDirectory + fileName);
+
+        // create a buffer to hold the incoming data
+        byte[] buffer = new byte[PAYLOAD_SIZE + HEADER_SIZE];
+        int numPacketsReceived = 0;
+
+        // create a FileOutputStream to write the data to a file
+        FileOutputStream fileOutputStream = new FileOutputStream(file);
+
+        // receive packets until the end-of-file message is received
+        while (true) {
+            DatagramPacket filePacket = new DatagramPacket(buffer, buffer.length);
+            socket.receive(filePacket);
+
+            String packetData = new String(filePacket.getData(), 0, filePacket.getLength());
+            if (packetData.contains("END_OF_FILE")) {
+                Protocol.sendAck(socket, receivePacket, Protocol.getSeqNum(filePacket.getData()));
+                break;
+            }
+
+            int packetSeqNum = Protocol.getSeqNum(filePacket.getData());
+            numPacketsReceived++;
+
+            // write the payload to the output file starting after the header
+            fileOutputStream.write(filePacket.getData(), HEADER_SIZE, filePacket.getLength() - HEADER_SIZE);
+            fileOutputStream.flush();
+
+            // send an ACK to the server
+            Protocol.sendAck(socket, receivePacket, packetSeqNum);
+        }
+
+        System.out.println("File download successful.");
+        fileOutputStream.close();
+
     }
 
 
@@ -383,12 +372,6 @@ private static void removeFile(DatagramSocket socket, InetAddress serverAddress,
         socket.send(commandPacket);
     }
 
-    private static byte[] createPacket(byte[] header, byte[] payload) {
-        byte[] packet = new byte[header.length + payload.length];
-        System.arraycopy(header, 0, packet, 0, header.length);
-        System.arraycopy(payload, 0, packet, header.length, payload.length);
-        return packet;
-    }
 
 //    private static void replaceFile(DatagramSocket socket, InetAddress serverAddress, BufferedReader in) {
 //        try {

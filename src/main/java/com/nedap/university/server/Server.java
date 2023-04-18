@@ -10,17 +10,19 @@ import java.net.DatagramSocket;
 import java.net.SocketTimeoutException;
 import java.nio.ByteBuffer;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Arrays;
 
 
 public class Server {
 
-    private static final int BUFFER_SIZE = 1024;
     private static final int HEADER_SIZE = 8;
+    private static final int PAYLOAD_SIZE = 1024;
+    private static final int BUFFER_SIZE = PAYLOAD_SIZE + HEADER_SIZE;
     //pi: "home/pi/data"
     private static final String pathToDirectory = "/Users/anniek.bisschop/Networking/network-systems/src/main/java/com/nedap/university/data/";
-    private static final int PAYLOAD_SIZE = 1024;
+
 
 
 
@@ -30,7 +32,7 @@ public class Server {
             DatagramSocket socket = new DatagramSocket(9090);
 
             // create a buffer to receive packets
-            byte[] receiveBuffer = new byte[BUFFER_SIZE + HEADER_SIZE];
+            byte[] receiveBuffer = new byte[BUFFER_SIZE];
             DatagramPacket receivePacket = new DatagramPacket(receiveBuffer, receiveBuffer.length);
 
             while (true) {
@@ -56,7 +58,7 @@ public class Server {
                         uploadFileToServer(socket, receivePacket, messageArray, seqNum);
                         break;
                     case "download":
-                        downloadFromServer(socket, receivePacket, messageArray, seqNum);
+                        downloadFromServer(socket, receivePacket, messageArray);
                         break;
                     case "remove":
                         removeFileOnServer(socket, receivePacket, messageArray, seqNum);
@@ -100,9 +102,10 @@ public class Server {
         File fileToUpload = new File(pathToDirectory, fileNameToUpload);
         System.out.println("file to upload: " + fileToUpload);
         String amountPackages = messageArray[2] + 1;
+        String hashFromClient = messageArray[3];
 
         // create a buffer to hold the incoming data
-        byte[] buffer = new byte[PAYLOAD_SIZE + 8];
+        byte[] buffer = new byte[BUFFER_SIZE];
         int numPacketsReceived = 0;
 
         // create a FileOutputStream to write the data to a file
@@ -133,13 +136,51 @@ public class Server {
             Protocol.sendAck(socket, receivePacket, packetSeqNum);
         }
 
+        String filePath = fileToUpload.getPath(); // get the path of the file
+        // create a new File object based on the path
+        File uploadedFile = new File(filePath);
 
+        // compare the hashes of the two files
+        byte[] fileData = Files.readAllBytes(uploadedFile.toPath());
+        String expectedHash = Protocol.getHash(fileData);
+        boolean hashesMatch = hashFromClient.equals(expectedHash);
+        System.out.println("hashes match:" + hashesMatch);
         System.out.println("File upload successful");
         fileOutputStream.close();
 
     }
+    private static void downloadFromServer(DatagramSocket socket, DatagramPacket receivePacket, String[] messageArray) throws IOException {
+        DatagramPacket responsePacket;
+        System.out.println("Received download request from client " + receivePacket.getAddress() + ":" + receivePacket.getPort());
+
+        int seqNum = 0;
+        Protocol.sendAck(socket, receivePacket, seqNum + 1);
+        System.out.println("ACK sent for download req");
+        String fileName = messageArray[1];
+        File file = new File(pathToDirectory + fileName);
+
+        if (!file.exists()) {
+            // send a response to the client indicating that the file does not exist
+            String message = "File does not exist";
+            responsePacket = Protocol.createResponsePacket(message, socket, receivePacket, 1);
+            socket.send(responsePacket);
+        } else {
+            // read the file into a byte array
+            byte[] fileData = Files.readAllBytes(file.toPath());
+            String expectedHash = Protocol.getHash(fileData);
+            // calculate total number of packets to be sent
+            int numPackets = (int) Math.ceil(fileData.length / (double) PAYLOAD_SIZE);
+            System.out.println("number of Packets is: " + numPackets);
+
+            // send a response to the client indicating that the server is ready to send the file
+            String message = "Ready to send file " + fileName + " " + numPackets + " " + expectedHash;
+            System.out.println("ready to send file " + fileName + " numPackets:" + numPackets);
+            responsePacket = Protocol.createResponsePacket(message, socket, receivePacket, 1);
+            socket.send(responsePacket);
+        }
 
 
+    }
 
     private static void removeFileOnServer(DatagramSocket socket, DatagramPacket receivePacket, String[] messageArray, int seqNum) throws IOException {
         DatagramPacket responsePacket;
@@ -171,7 +212,6 @@ public class Server {
             socket.send(responsePacket);
         }
     }
-
     private static void listAllFilesOnServer(DatagramSocket socket, DatagramPacket receivePacket, int seqNum) throws IOException {
         System.out.println("list message received from " + receivePacket.getAddress());
         DatagramPacket responsePacket;
@@ -212,7 +252,7 @@ public class Server {
                 } catch (SocketTimeoutException e) {
                     System.out.println("Timeout waiting for acknowledgement. Retrying...");
                     tries++;
-                     // continue the while loop to retry
+                    // continue the while loop to retry
                 } catch (IOException e) {
                     System.out.println("IOException occurred while communicating with client: " + e.getMessage());
                     break;
@@ -225,57 +265,6 @@ public class Server {
             }
         }
     }
-
-
-    private static void downloadFromServer(DatagramSocket socket, DatagramPacket receivePacket, String[] messageArray, int seqNum) throws IOException {
-        DatagramPacket responsePacket;
-        System.out.println("Received download request from client " + receivePacket.getAddress() + ":" + receivePacket.getPort());
-
-        Protocol.sendAck(socket, receivePacket, seqNum +1);
-        System.out.println("ACK sent for download req");
-        String fileName = messageArray[1];
-        File file = new File(pathToDirectory + fileName);
-
-        if (!file.exists()) {
-            // send a response to the client indicating that the file does not exist
-            String message = "File does not exist";
-            responsePacket = Protocol.createResponsePacket(message, socket, receivePacket, 1);
-            socket.send(responsePacket);
-        } else {
-            String message = "Ready to send file " + fileName;
-            System.out.println("ready to send file " + fileName);
-            responsePacket = Protocol.createResponsePacket(message, socket, receivePacket, 1);
-            socket.send(responsePacket);
-        }
-        //else {
-//            // send a response to the client indicating that the server is ready to send the file
-//            String uploadResponse = "Ready to send file " + fileName;
-//            System.out.println("ready to send file " + fileName);
-//            byte[] responseBuffer = uploadResponse.getBytes();
-//            DatagramPacket responsePacket = new DatagramPacket(responseBuffer, responseBuffer.length, receivePacket.getAddress(), receivePacket.getPort());
-//            socket.send(responsePacket);
-//
-//            // open the file and read it in chunks of 1024 bytes
-//            FileInputStream fileInputStream = new FileInputStream(file);
-//            byte[] fileBuffer = new byte[1024];
-//            int bytesRead;
-//            while ((bytesRead = fileInputStream.read(fileBuffer)) > 0) {
-//                byte[] chunkBuffer = Arrays.copyOfRange(fileBuffer, 0, bytesRead);
-//                DatagramPacket filePacket = new DatagramPacket(chunkBuffer, bytesRead, receivePacket.getAddress(), receivePacket.getPort());
-//                socket.send(filePacket);
-//            }
-//
-//            System.out.println("File sent successfully");
-//
-//            // send "end" message to client
-//            byte[] endBuffer = "end".getBytes();
-//            DatagramPacket endPacket = new DatagramPacket(endBuffer, endBuffer.length, receivePacket.getAddress(), receivePacket.getPort());
-//            socket.send(endPacket);
-//
-//            fileInputStream.close();
-//        }
-    }
-
 
     //
 //    private static void replaceFileOnServer(DatagramSocket socket, DatagramPacket receivePacket, String[] messageArray, int seqNum) throws IOException {

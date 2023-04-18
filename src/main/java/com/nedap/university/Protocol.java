@@ -1,9 +1,10 @@
 package com.nedap.university;
 
+import java.io.File;
 import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
-import java.net.InetAddress;
+import java.util.Arrays;
 
 public class Protocol {
 
@@ -119,6 +120,12 @@ public class Protocol {
         byte[] messageData = new byte[messageLength];
         System.arraycopy(responseData, headerLength, messageData, 0, messageLength);
         return messageData;
+    }
+
+    public static String getHash(byte[] data){
+        int hash = Arrays.hashCode(data);
+        String hashFunction = String.valueOf(hash);
+        return hashFunction;
     }
 
     //TODO IMPLEMENTATION FOR WAITFORACK
