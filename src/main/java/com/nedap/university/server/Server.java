@@ -91,7 +91,6 @@ public class Server {
     }
 
     public static void uploadFileToServer(DatagramSocket socket, DatagramPacket receivePacket, String[] messageArray, int seqNum) throws IOException {
-        DatagramPacket responsePacket;
         // log that the remove request has been received
         System.out.println("Received upload request from client " + receivePacket.getAddress() + ":" + receivePacket.getPort());
         Protocol.sendAck(socket, receivePacket, seqNum);
@@ -116,8 +115,6 @@ public class Server {
             // create a DatagramPacket to receive the packet from the client
             DatagramPacket filePacket = new DatagramPacket(buffer, buffer.length);
             socket.receive(filePacket);
-//            byte[] receivedData = filePacket.getData();
-//            System.out.println(new String(receivedData, HEADER_SIZE, filePacket.getLength() - HEADER_SIZE));
             // check if the packet contains the end-of-file message
             String packetData = new String(filePacket.getData(), 0, filePacket.getLength());
             if (packetData.contains("END_OF_FILE")) {
@@ -127,7 +124,6 @@ public class Server {
             }
 
             int packetSeqNum = Protocol.getSeqNum(filePacket.getData());
-//            System.out.println("Packet received: " + numPacketsReceived + ", seqnum: " + packetSeqNum);
             numPacketsReceived++;
 
             // write the payload to the output file starting after the header

@@ -219,30 +219,21 @@ public class Client {
             // set the maximum size of each packet to 1024 bytes
             int maxPacketSize = 1024;
             int seqNum = 0;
-//
-//            System.out.println("Length of fileData array: " + fileData.length);
-
 
             // create and send packets for each chunk of the file data
             for (int i = 0; i < fileData.length; i += maxPacketSize) {
                 // Extract a portion of the file data as a new byte array starting from index i and up to a maximum of maxPacketSize bytes or less if the end of the file has been reached.
                 byte[] chunkData = Arrays.copyOfRange(fileData, i, Math.min(i + maxPacketSize, fileData.length));
                 DatagramPacket packet = Protocol.createResponsePacket(chunkData, socket, receivePacket, seqNum);
-                byte[] fileChunk = packet.getData();
-//                System.out.println("Size of uploaded file: " + Arrays.toString(fileChunk));
                 // send the packet and wait for the response with the expected sequence number
                 boolean receivedExpectedSeqNum = false;
                 while (!receivedExpectedSeqNum) {
                     socket.send(packet);
-                    byte[] sendData = packet.getData();
-                    System.out.println(new String(sendData, HEADER_SIZE, packet.getLength() - HEADER_SIZE));
-//                    System.out.println("Packet sent seqnum: " + seqNum);
-
                     // wait for the ack packet with the expected sequence number
                     DatagramPacket ackPacket = Protocol.receiveAck(socket, receivePacket, seqNum);
 
                     int receivedSeqNum = Protocol.getSeqNum(ackPacket.getData());
-                    System.out.println("Received seqnum: " + receivedSeqNum);
+                    System.out.println("Ack received seqnum: " + receivedSeqNum);
 
                     if (receivedSeqNum == seqNum) {
                         receivedExpectedSeqNum = true;
@@ -263,9 +254,6 @@ public class Client {
                 throw new RuntimeException(e);
             }
     }
-
-
-
     private static void downloadFile(DatagramSocket socket, InetAddress serverAddress, BufferedReader in, DatagramPacket receivePacket, int seqNum) throws IOException {
         // send download request to server
         System.out.print("Enter path to file you want to download: ");
