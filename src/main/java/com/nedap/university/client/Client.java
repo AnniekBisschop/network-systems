@@ -238,6 +238,9 @@ public class Client {
 
                     int receivedSeqNum = Protocol.getSeqNum(ackPacket.getData());
                     System.out.println("Ack received seqnum: " + receivedSeqNum);
+                    // print the contents of the ACK packet
+                    byte[] ackData = receivePacket.getData();
+                    System.out.println("ACK data: " + new String(ackData, 0, receivePacket.getLength()));
 
                     if (receivedSeqNum == seqNum) {
                         receivedExpectedSeqNum = true;
@@ -253,13 +256,15 @@ public class Client {
             System.out.println("Final packet sent with seqnum " + seqNum);
 
             Protocol.receiveAck(socket, receivePacket,seqNum);
+            byte[] ackData = receivePacket.getData();
+            System.out.println("ACK data: " + new String(ackData, 0, receivePacket.getLength()));
             System.out.println("End ack received");
             } catch (IOException e) {
                 throw new RuntimeException(e);
             }
     }
     private static void downloadFile(DatagramSocket socket, InetAddress serverAddress, BufferedReader in, DatagramPacket receivePacket, int seqNum) throws IOException {
-        showList(socket,serverAddress,receivePacket,seqNum);
+//        showList(socket,serverAddress,receivePacket,seqNum);
         System.out.println("Please enter a file that is on the list");
         // send download request to server
         System.out.print("Filename: ");
@@ -272,13 +277,27 @@ public class Client {
 
         // receive the response from the server
         Protocol.receiveAck(socket, receivePacket, seqNum);
-        System.out.println("Ack received from download req");
+        // print the contents of the ACK packet
+        byte[] ackData = receivePacket.getData();
+        System.out.println("ACK data: " + new String(ackData, 0, receivePacket.getLength()));
+
         byte[] receiveData = Protocol.receiveData(socket, header.length);
         String response = new String(receiveData);
         System.out.println("Received message: " + response.trim());
 
+// split the response into parts using whitespace as the delimiter
+        String[] parts = response.trim().split("\\s+");
+
+// select the third element (index 2) from the parts array
+        String amountPackages = parts[5];
+        String hashFromServer = parts[6];
+        System.out.println("amount packages " + amountPackages + " hash: " + hashFromServer);
 
         Protocol.receiveAck(socket,receivePacket,seqNum);
+        // print the contents of the ACK packet
+        ackData = receivePacket.getData();
+        System.out.println("ACK data: " + new String(ackData, 0, receivePacket.getLength()));
+
 
         // create a File object to represent the downloaded file
         file = new File(pathToDirectory + fileName);
@@ -289,16 +308,20 @@ public class Client {
 
         // create a FileOutputStream to write the data to a file
         FileOutputStream fileOutputStream = new FileOutputStream(file);
+        System.out.println("file outputstream");
+        socket.receive(receivePacket);
+        System.out.println("start receiving packets....");
+        while (numPacketsReceived < Integer.parseInt(amountPackages)) {
 
-        // receive packets until the end-of-file message is received
-        while (true) {
+            // create a DatagramPacket to receive the packet from the client
             DatagramPacket filePacket = new DatagramPacket(buffer, buffer.length);
             socket.receive(filePacket);
-
+            // check if the packet contains the end-of-file message
             String packetData = new String(filePacket.getData(), 0, filePacket.getLength());
             if (packetData.contains("END_OF_FILE")) {
+                // send an ACK to the client
                 Protocol.sendAck(socket, receivePacket, Protocol.getSeqNum(filePacket.getData()));
-                break;
+                break;  // exit the loop to finish receiving the file
             }
 
             int packetSeqNum = Protocol.getSeqNum(filePacket.getData());
@@ -307,12 +330,20 @@ public class Client {
             // write the payload to the output file starting after the header
             fileOutputStream.write(filePacket.getData(), HEADER_SIZE, filePacket.getLength() - HEADER_SIZE);
             fileOutputStream.flush();
-
-            // send an ACK to the server
+            // send an ACK to the client
             Protocol.sendAck(socket, receivePacket, packetSeqNum);
         }
 
-        System.out.println("File download successful.");
+        String filePath = file.getPath(); // get the path of the file
+        // create a new File object based on the path
+        File uploadedFile = new File(filePath);
+
+        // compare the hashes of the two files
+        byte[] fileData = Files.readAllBytes(uploadedFile.toPath());
+        String expectedHash = Protocol.getHash(fileData);
+        boolean hashesMatch = hashFromServer.equals(expectedHash);
+        System.out.println("hashes match:" + hashesMatch);
+        System.out.println("File upload successful");
         fileOutputStream.close();
 
     }

@@ -84,12 +84,13 @@ public class Server {
     private static void sendWelcomeMessage(DatagramSocket socket, DatagramPacket receivePacket, int seqNum, int ackNum) throws IOException {
         DatagramPacket responsePacket;
         System.out.println("Hello message received from " + receivePacket.getAddress());
-        // Send an acknowledgement
-        Protocol.sendAck(socket, receivePacket, seqNum);
+
         // send a response with available options
         System.out.println("Menu options sent to client");
         responsePacket = Protocol.createResponsePacket("Welcome, You have successfully connected to the server.", socket, receivePacket, 1);
         socket.send(responsePacket);
+        // Send an acknowledgement
+        Protocol.sendAck(socket, receivePacket, seqNum);
     }
 
     public static void uploadFileToServer(DatagramSocket socket, DatagramPacket receivePacket, String[] messageArray, int seqNum) throws IOException {
@@ -149,6 +150,7 @@ public class Server {
         fileOutputStream.close();
 
     }
+
     private static void downloadFromServer(DatagramSocket socket, DatagramPacket receivePacket, String[] messageArray) throws IOException {
         DatagramPacket responsePacket;
         System.out.println("Received download request from client " + receivePacket.getAddress() + ":" + receivePacket.getPort());
@@ -168,19 +170,59 @@ public class Server {
             // read the file into a byte array
             byte[] fileData = Files.readAllBytes(file.toPath());
             String expectedHash = Protocol.getHash(fileData);
-            // calculate total number of packets to be sent
-            int numPackets = (int) Math.ceil(fileData.length / (double) PAYLOAD_SIZE);
+
+            // set the maximum size of each packet to 1024 bytes
+            int maxPacketSize = 1024;
+            int numPackets = (int) Math.ceil(fileData.length / (double) maxPacketSize);
             System.out.println("number of Packets is: " + numPackets);
 
             // send a response to the client indicating that the server is ready to send the file
             String message = "Ready to send file " + fileName + " " + numPackets + " " + expectedHash;
             System.out.println("ready to send file " + fileName + " numPackets:" + numPackets);
-            responsePacket = Protocol.createResponsePacket(message, socket, receivePacket, 1);
+            responsePacket = Protocol.createResponsePacket(message, socket, receivePacket, seqNum);
             socket.send(responsePacket);
+            System.out.println("ready to send verzonden");
+            seqNum++;
+            System.out.println("seq num" + seqNum);
+            // send each chunk of the file data as a separate packet
+            for (int i = 0; i < fileData.length; i += maxPacketSize) {
+                // Extract a portion of the file data as a new byte array starting from index i and up to a maximum of maxPacketSize bytes or less if the end of the file has been reached.
+                byte[] chunkData = Arrays.copyOfRange(fileData, i, Math.min(i + maxPacketSize, fileData.length));
+                DatagramPacket packet = Protocol.createResponsePacket(chunkData, socket, receivePacket, seqNum);
+                // send the packet and wait for the response with the expected sequence number
+                boolean receivedExpectedSeqNum = false;
+                while (!receivedExpectedSeqNum) {
+                    System.out.println("in while");
+                    socket.send(packet);
+                    // get the sequence number of the packet
+                    int packetSeqNum = Protocol.getSeqNum(packet.getData());
+                    System.out.println("Sending packet with seqnum " + packetSeqNum);
+                    // wait for the ack packet with the expected sequence number
+                    DatagramPacket ackPacket = Protocol.receiveAck(socket, receivePacket, seqNum);
+
+                    int receivedSeqNum = Protocol.getSeqNum(ackPacket.getData());
+                    System.out.println("Ack received seqnum: " + receivedSeqNum);
+
+                    if (receivedSeqNum == seqNum) {
+                        receivedExpectedSeqNum = true;
+                        seqNum++;
+                    }
+                }
+            }
+
+            // send final packet with end-of-file message
+            byte[] eofMsg = "END_OF_FILE".getBytes();
+            DatagramPacket eofPacket = Protocol.createResponsePacket(eofMsg, socket, receivePacket, seqNum);
+            socket.send(eofPacket);
+            System.out.println("Final packet sent with seqnum " + seqNum);
+
+            Protocol.receiveAck(socket, receivePacket, seqNum);
+            System.out.println("End ack received");
         }
-
-
     }
+
+
+
 
     private static void removeFileOnServer(DatagramSocket socket, DatagramPacket receivePacket, String[] messageArray, int seqNum) throws IOException {
         DatagramPacket responsePacket;
