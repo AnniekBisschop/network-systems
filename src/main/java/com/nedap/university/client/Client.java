@@ -22,6 +22,7 @@ public class Client {
     private static final int PORT = 9090;
     private static final int HEADER_SIZE = 8; // 4 bytes for seq, 4 bytes for ack
     private static final int PAYLOAD_SIZE = 1024;
+    private static final int BUFFER_SIZE = PAYLOAD_SIZE + HEADER_SIZE;
     private static final String pathToDirectory = "/Users/anniek.bisschop/Networking/network-systems/src/main/java/com/nedap/university/download/";
     public static void main(String[] args) {
         DatagramSocket socket = null;
@@ -293,29 +294,35 @@ public class Client {
         String hashFromServer = parts[6];
         System.out.println("amount packages " + amountPackages + " hash: " + hashFromServer);
 
-        Protocol.receiveAck(socket,receivePacket,seqNum);
-        // print the contents of the ACK packet
-        ackData = receivePacket.getData();
-        System.out.println("ACK data: " + new String(ackData, 0, receivePacket.getLength()));
+
+//        Protocol.receiveAck(socket,receivePacket,seqNum);
+//        // print the contents of the ACK packet
+//        ackData = receivePacket.getData();
+//        System.out.println("ACK data: " + new String(ackData, 0, receivePacket.getLength()));
 
 
         // create a File object to represent the downloaded file
         file = new File(pathToDirectory + fileName);
-
+        System.out.println("na new File");
         // create a buffer to hold the incoming data
-        byte[] buffer = new byte[PAYLOAD_SIZE + HEADER_SIZE];
+        byte[] buffer = new byte[BUFFER_SIZE + 8];
         int numPacketsReceived = 0;
 
         // create a FileOutputStream to write the data to a file
         FileOutputStream fileOutputStream = new FileOutputStream(file);
         System.out.println("file outputstream");
-        socket.receive(receivePacket);
+
         System.out.println("start receiving packets....");
         while (numPacketsReceived < Integer.parseInt(amountPackages)) {
-
             // create a DatagramPacket to receive the packet from the client
             DatagramPacket filePacket = new DatagramPacket(buffer, buffer.length);
+            System.out.println("voor filepacket");
             socket.receive(filePacket);
+            System.out.println("na filepacket");
+//            byte[] recData = filePacket.getData();
+//            System.out.println("Packet data: " + new String(recData, 0, filePacket.getLength()));
+//            int seqNumRec = Protocol.getSeqNum(filePacket.getData());
+//            System.out.println("seq num"+ seqNumRec);
             // check if the packet contains the end-of-file message
             String packetData = new String(filePacket.getData(), 0, filePacket.getLength());
             if (packetData.contains("END_OF_FILE")) {
@@ -342,7 +349,11 @@ public class Client {
         byte[] fileData = Files.readAllBytes(uploadedFile.toPath());
         String expectedHash = Protocol.getHash(fileData);
         boolean hashesMatch = hashFromServer.equals(expectedHash);
-        System.out.println("hashes match:" + hashesMatch);
+       if(hashesMatch){
+           System.out.println("This file is safe to download");
+       }else{
+           System.err.println("Do not open this file, could be corrupted");
+       }
         System.out.println("File upload successful");
         fileOutputStream.close();
 

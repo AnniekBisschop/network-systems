@@ -89,6 +89,7 @@ public class Server {
         System.out.println("Menu options sent to client");
         responsePacket = Protocol.createResponsePacket("Welcome, You have successfully connected to the server.", socket, receivePacket, 1);
         socket.send(responsePacket);
+
         // Send an acknowledgement
         Protocol.sendAck(socket, receivePacket, seqNum);
     }
@@ -151,7 +152,7 @@ public class Server {
 
     }
 
-    private static void downloadFromServer(DatagramSocket socket, DatagramPacket receivePacket, String[] messageArray) throws IOException {
+    private static void downloadFromServer(DatagramSocket socket, DatagramPacket receivePacket, String[] messageArray) throws IOException, InterruptedException {
         DatagramPacket responsePacket;
         System.out.println("Received download request from client " + receivePacket.getAddress() + ":" + receivePacket.getPort());
 
@@ -178,39 +179,62 @@ public class Server {
 
             // send a response to the client indicating that the server is ready to send the file
             String message = "Ready to send file " + fileName + " " + numPackets + " " + expectedHash;
-            System.out.println("ready to send file " + fileName + " numPackets:" + numPackets);
+            System.out.println("ready to send file " + fileName + " numPackets:" + numPackets + " " + "expected hash" + expectedHash);
             responsePacket = Protocol.createResponsePacket(message, socket, receivePacket, seqNum);
             socket.send(responsePacket);
             System.out.println("ready to send verzonden");
             seqNum++;
-            System.out.println("seq num" + seqNum);
-            // send each chunk of the file data as a separate packet
+
+            int timeout = 5000; // set timeout value to 5 seconds
+            int maxRetransmits = 3; // set maximum number of retransmissions
             for (int i = 0; i < fileData.length; i += maxPacketSize) {
                 // Extract a portion of the file data as a new byte array starting from index i and up to a maximum of maxPacketSize bytes or less if the end of the file has been reached.
                 byte[] chunkData = Arrays.copyOfRange(fileData, i, Math.min(i + maxPacketSize, fileData.length));
                 DatagramPacket packet = Protocol.createResponsePacket(chunkData, socket, receivePacket, seqNum);
                 // send the packet and wait for the response with the expected sequence number
                 boolean receivedExpectedSeqNum = false;
+                long startTime = System.currentTimeMillis();// get the start time
+                int retransmits = 0; // initialize the retransmit counter
                 while (!receivedExpectedSeqNum) {
-                    System.out.println("in while");
                     socket.send(packet);
+//                    byte[] sendData = packet.getData();
+//                    System.out.println("Packet data: " + new String(sendData, 0, packet.getLength()));
                     // get the sequence number of the packet
                     int packetSeqNum = Protocol.getSeqNum(packet.getData());
                     System.out.println("Sending packet with seqnum " + packetSeqNum);
                     // wait for the ack packet with the expected sequence number
-                    DatagramPacket ackPacket = Protocol.receiveAck(socket, receivePacket, seqNum);
+                    try {
+                        DatagramPacket ackPacket = Protocol.receiveAck(socket, receivePacket, seqNum, timeout);
+                        int receivedSeqNum = Protocol.getSeqNum(ackPacket.getData());
+                        System.out.println("Ack received seqnum: " + receivedSeqNum);
 
-                    int receivedSeqNum = Protocol.getSeqNum(ackPacket.getData());
-                    System.out.println("Ack received seqnum: " + receivedSeqNum);
-
-                    if (receivedSeqNum == seqNum) {
-                        receivedExpectedSeqNum = true;
+                        if (receivedSeqNum == seqNum) {
+                            receivedExpectedSeqNum = true;
+                            seqNum++;
+                            retransmits = 0; // reset the retransmit counter
+                        }
+                    } catch (SocketTimeoutException e) {
+                        // resend the packet if timeout occurs
+                        System.out.println("Timeout occurred, resending packet");
+                        retransmits++; // increment the retransmit counter
                         seqNum++;
+                        if (retransmits > maxRetransmits) {
+                            // assume packet is lost and retransmit
+                            System.out.println("Maximum retransmits exceeded, retransmitting packet");
+                            break;
+                        }
+                    }
+                    // check if the maximum time limit has been exceeded
+                    if (System.currentTimeMillis() - startTime >= timeout) {
+                        System.out.println("Maximum time limit exceeded, giving up");
+                        break;
                     }
                 }
             }
 
-            // send final packet with end-of-file message
+
+
+                // send final packet with end-of-file message
             byte[] eofMsg = "END_OF_FILE".getBytes();
             DatagramPacket eofPacket = Protocol.createResponsePacket(eofMsg, socket, receivePacket, seqNum);
             socket.send(eofPacket);
@@ -219,9 +243,8 @@ public class Server {
             Protocol.receiveAck(socket, receivePacket, seqNum);
             System.out.println("End ack received");
         }
+
     }
-
-
 
 
     private static void removeFileOnServer(DatagramSocket socket, DatagramPacket receivePacket, String[] messageArray, int seqNum) throws IOException {

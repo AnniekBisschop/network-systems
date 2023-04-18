@@ -4,6 +4,7 @@ import java.io.File;
 import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
+import java.net.SocketTimeoutException;
 import java.util.Arrays;
 
 public class Protocol {
@@ -108,6 +109,15 @@ public class Protocol {
         byte[] ackBuffer = new byte[HEADER_SIZE];
         DatagramPacket ackPacket = new DatagramPacket(ackBuffer, HEADER_SIZE);
         socket.receive(ackPacket);
+        return ackPacket;
+    }
+
+    public static DatagramPacket receiveAck(DatagramSocket socket, DatagramPacket receivePacket, int seqNum, int timeout) throws IOException, SocketTimeoutException {
+        byte[] ackBuffer = new byte[HEADER_SIZE];
+        DatagramPacket ackPacket = new DatagramPacket(ackBuffer, HEADER_SIZE);
+        socket.setSoTimeout(timeout); // set the socket timeout
+        socket.receive(ackPacket);
+        socket.setSoTimeout(0); // reset the socket timeout
         return ackPacket;
     }
 
