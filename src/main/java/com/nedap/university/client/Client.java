@@ -105,7 +105,7 @@ public class Client {
                         removeFile(socket, serverAddress, in, receivePacket, seqNum);
                         break;
                     case "4":
-//                        replaceFile(socket, serverAddress, in);
+                        replaceFile(socket, serverAddress, in, receivePacket, seqNum);
                         break;
                     case "5":
                         showList(socket, serverAddress, receivePacket, seqNum);
@@ -319,11 +319,7 @@ public class Client {
             System.out.println("voor filepacket");
             socket.receive(filePacket);
             System.out.println("na filepacket");
-//            byte[] recData = filePacket.getData();
-//            System.out.println("Packet data: " + new String(recData, 0, filePacket.getLength()));
-//            int seqNumRec = Protocol.getSeqNum(filePacket.getData());
-//            System.out.println("seq num"+ seqNumRec);
-            // check if the packet contains the end-of-file message
+
             String packetData = new String(filePacket.getData(), 0, filePacket.getLength());
             if (packetData.contains("END_OF_FILE")) {
                 // send an ACK to the client
@@ -415,72 +411,72 @@ private static void removeFile(DatagramSocket socket, InetAddress serverAddress,
     }
 
 
-//    private static void replaceFile(DatagramSocket socket, InetAddress serverAddress, BufferedReader in) {
-//        try {
-//            // send replace request to server
-//            System.out.print("Enter name of file you want to replace: ");
-//            String fileName = in.readLine();
-//            String replaceMessage = "replace " + fileName;
-//            byte[] replaceBuffer = replaceMessage.getBytes();
-//            DatagramPacket replacePacket = new DatagramPacket(replaceBuffer, replaceBuffer.length, serverAddress, PORT);
-//            socket.send(replacePacket);
-//
-//            // receive response from server
-//            byte[] responseBuffer = new byte[1024];
-//            DatagramPacket responsePacket = new DatagramPacket(responseBuffer, responseBuffer.length);
-//            socket.receive(responsePacket);
-//            String responseReplace = new String(responsePacket.getData(), 0, responsePacket.getLength());
-//            if (responseReplace.contains("File not found")) {
-//                System.out.println("File not found on server.");
-//                return;
-//            } else if (responseReplace.contains("Ready to receive")) {
-//                System.out.println("upload function??");
-//            } else {
-//                System.err.println("Received unexpected response from server: " + responseReplace);
-//                return;
-//            }
-//
-//            // read file from local file system and send to server in packets
-//            System.out.print("Enter path to new file: ");
-//            String filePath = in.readLine();
-//            File file = new File(filePath);
-//            if (!file.exists()) {
-//                System.out.println("File not found.");
-//                return;
-//            }
-//
-//            byte[] fileBuffer = new byte[1024];
-//            FileInputStream fileInputStream = new FileInputStream(file);
-//            int bytesRead = 0;
-//            int packetCount = 0;
-//            while ((bytesRead = fileInputStream.read(fileBuffer)) != -1) {
-//                packetCount++;
-//                DatagramPacket filePacket = new DatagramPacket(fileBuffer, bytesRead, serverAddress, PORT);
-//                socket.send(filePacket);
-//            }
-//
-//            // send end of file marker to server
-//            String endMessage = "end";
-//            byte[] endBuffer = endMessage.getBytes();
-//            DatagramPacket endPacket = new DatagramPacket(endBuffer, endBuffer.length, serverAddress, PORT);
-//            socket.send(endPacket);
-//
-//            // receive response from server indicating file replacement success
-//            byte[] successBuffer = new byte[1024];
-//            DatagramPacket successPacket = new DatagramPacket(successBuffer, successBuffer.length);
-//            socket.receive(successPacket);
-//            String successResponse = new String(successPacket.getData(), 0, successPacket.getLength());
-//            if (successResponse.contains("File replaced successfully")) {
-//                System.out.println("File replaced successfully.");
-//            } else {
-//                System.err.println("Received unexpected response from server: " + successResponse);
-//            }
-//
-//            System.out.println("File sent in " + packetCount + " packets.");
-//        } catch (IOException e) {
-//            e.printStackTrace();
-//        }
-//    }
+    private static void replaceFile(DatagramSocket socket, InetAddress serverAddress, BufferedReader in, DatagramPacket receivePacket, int seqNum) throws IOException {
+        try {
+            // send upload request to server
+            System.out.print("Enter the file you want to replace on the server: ");
+            String fileName = in.readLine();
+
+            byte[] header = Protocol.createHeader(0, 0);
+            String message = "replace " + fileName;
+            commandRequestToServer(socket, serverAddress, header, message);
+
+            int expectedSeqNum = Protocol.getSeqNum(header);
+            boolean ackReceived = false;
+            int maxRetries = 3;
+            int numRetries = 0;
+
+            while (!ackReceived && numRetries < maxRetries) {
+                try {
+                    commandRequestToServer(socket, serverAddress, header, message);
+                    System.out.println("replace request sent");
+                    receiveAckFromServer(socket, expectedSeqNum);
+                    socket.setSoTimeout(5000);
+                    System.out.println("replace ack packet received from server");
+                    ackReceived = true;
+                    socket.setSoTimeout(0);
+                } catch (SocketTimeoutException e) {
+                    numRetries++;
+                    System.out.println("Timeout occurred, retrying...");
+                }
+            }
+
+            if (ackReceived) {
+                System.out.println("replace request acknowledged");
+            } else {
+                System.out.println("replace request failed after " + maxRetries + " attempts");
+                System.out.println("Returning to main menu, please try again...");
+                return; // exit the method and return to the main menu
+            }
+
+            //receive msg
+            byte[] receiveData = Protocol.receiveData(socket, header.length);
+            String response = new String(receiveData);
+            System.out.println(response.trim() + "\nType yes or no");
+
+            String replaceQuestion = in.readLine();
+
+            if (replaceQuestion.equalsIgnoreCase("yes")) {
+                String msg = "YES_DO_A_REPLACE";
+                DatagramPacket responsePacket = Protocol.createResponsePacket(msg, socket, receivePacket, 1);
+                socket.send(responsePacket);
+                System.out.println("Enter the path to the file you want to replace");
+            } else if (replaceQuestion.equalsIgnoreCase("no")) {
+                System.out.println("No selected. Returning to main menu");
+                return;
+            }else{
+                System.out.println("Invalid option. Returning to main menu");
+                return;
+            }
+
+            uploadFile(socket, serverAddress, in, receivePacket);
+
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+
 
 private static void showList(DatagramSocket socket, InetAddress serverAddress, DatagramPacket receivePacket, int seqNum) {
     try {
@@ -509,6 +505,7 @@ private static void showList(DatagramSocket socket, InetAddress serverAddress, D
         String responseList = new String(responseData, 0, listPacketResponse.getLength() - HEADER_SIZE);
 
         System.out.println(responseList);
+
 
     } catch (IOException e) {
         e.printStackTrace();

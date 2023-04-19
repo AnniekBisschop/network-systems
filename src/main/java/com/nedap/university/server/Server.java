@@ -64,7 +64,7 @@ public class Server {
                         removeFileOnServer(socket, receivePacket, messageArray, seqNum);
                         break;
                     case "replace":
-//                        replaceFileOnServer(socket, receivePacket, messageArray, seqNum);
+                        replaceFileOnServer(socket, receivePacket, messageArray, seqNum);
                         break;
                     case "list":
                         listAllFilesOnServer(socket, receivePacket, seqNum);
@@ -157,7 +157,7 @@ public class Server {
         System.out.println("Received download request from client " + receivePacket.getAddress() + ":" + receivePacket.getPort());
 
         int seqNum = 0;
-        Protocol.sendAck(socket, receivePacket, seqNum + 1);
+        Protocol.sendAck(socket, receivePacket, seqNum);
         System.out.println("ACK sent for download req");
         String fileName = messageArray[1];
         File file = new File(pathToDirectory + fileName);
@@ -231,17 +231,12 @@ public class Server {
                     }
                 }
             }
-
-
-
                 // send final packet with end-of-file message
             byte[] eofMsg = "END_OF_FILE".getBytes();
             DatagramPacket eofPacket = Protocol.createResponsePacket(eofMsg, socket, receivePacket, seqNum);
             socket.send(eofPacket);
             System.out.println("Final packet sent with seqnum " + seqNum);
 
-            Protocol.receiveAck(socket, receivePacket, seqNum);
-            System.out.println("End ack received");
         }
 
     }
@@ -307,7 +302,7 @@ public class Server {
                     seqNum = Protocol.getSeqNum(ackPacket.getData());
                     System.out.println("acknowledgement for list received seqnum =" + seqNum );
 
-                    if (seqNum == 1) {
+                    if (seqNum == 0) {
                         System.out.println("Acknowledgement received.");
                         ackReceived = true;
                         socket.setSoTimeout(0);
@@ -331,62 +326,44 @@ public class Server {
         }
     }
 
-    //
-//    private static void replaceFileOnServer(DatagramSocket socket, DatagramPacket receivePacket, String[] messageArray, int seqNum) throws IOException {
-//        if (messageArray.length < 2) {
-//            // log an error and send an error response to the client
-//            System.err.println("Received invalid replace request from client " + receivePacket.getAddress() + ":" + receivePacket.getPort());
-//            String errorResponse = "Invalid replace request";
-//            byte[] responseBuffer = errorResponse.getBytes();
-//            DatagramPacket responsePacket = new DatagramPacket(responseBuffer, responseBuffer.length, receivePacket.getAddress(), receivePacket.getPort());
-//            socket.send(responsePacket);
-//            return;
-//        }
-//
-//        // log that the replace request has been received
-//        System.out.println("Received replace request from client " + receivePacket.getAddress() + ":" + receivePacket.getPort());
-//        String fileName = messageArray[1];
-//        File file = new File("/home/pi/data/" + fileName);
-//
-//        if (!file.exists()) {
-//            // send a response to the client indicating that the file does not exist
-//            String errorResponse = "File does not exist";
-//            byte[] responseBuffer = errorResponse.getBytes();
-//            DatagramPacket responsePacket = new DatagramPacket(responseBuffer, responseBuffer.length, receivePacket.getAddress(), receivePacket.getPort());
-//            socket.send(responsePacket);
-//            return;
-//        }
-//
-//        // send a response to the client indicating that the server is ready to receive the new file contents
-//        String replaceResponse = "Ready to receive new file contents";
-//        byte[] responseBuffer = replaceResponse.getBytes();
-//        DatagramPacket responsePacket = new DatagramPacket(responseBuffer, responseBuffer.length, receivePacket.getAddress(), receivePacket.getPort());
-//        socket.send(responsePacket);
-//
-//        // receive new file contents from the client and replace the contents of the existing file
-//        FileOutputStream fileOutputStream = new FileOutputStream(file);
-//        byte[] buffer = new byte[1024];
-//        DatagramPacket dataPacket = new DatagramPacket(buffer, buffer.length);
-//        while (true) {
-//            socket.receive(dataPacket);
-//
-//            // if the data packet contains the end of file marker, break out of the loop
-//            if (new String(dataPacket.getData(), 0, dataPacket.getLength()).equals("end")) {
-//                break;
-//            }
-//
-//            // write the entire contents of the data packet to the output file starting
-//            // from the beginning of the byte array.
-//            fileOutputStream.write(dataPacket.getData(), 0, dataPacket.getLength());
-//            fileOutputStream.flush();
-//        }
-//        fileOutputStream.close();
-//
-//        // send a response to the client indicating the replace was successful
-//        String replaceSuccess = "File replaced successfully";
-//        byte[] successBuffer = replaceSuccess.getBytes();
-//        DatagramPacket successPacket = new DatagramPacket(successBuffer, successBuffer.length, receivePacket.getAddress(), receivePacket.getPort());
-//        socket.send(successPacket);
-//    }
+
+    private static void replaceFileOnServer(DatagramSocket socket, DatagramPacket receivePacket, String[] messageArray, int seqNum) throws IOException {
+        DatagramPacket responsePacket;
+        System.out.println("Received replace request from client " + receivePacket.getAddress() + ":" + receivePacket.getPort());
+
+
+        Protocol.sendAck(socket, receivePacket, seqNum);
+        System.out.println("ACK sent for download req");
+        String fileName = messageArray[1];
+        File file = new File(pathToDirectory + fileName);
+
+        if (!file.exists()) {
+            // send a response to the client indicating that the file does not exist
+            String message = "File does not exist";
+            responsePacket = Protocol.createResponsePacket(message, socket, receivePacket, 1);
+            socket.send(responsePacket);
+        } else {
+            // send a response to the client indicating that the file does not exist
+            String message = "Are you sure you want to replace " + fileName + " ?";
+            responsePacket = Protocol.createResponsePacket(message, socket, receivePacket, 1);
+            socket.send(responsePacket);
+        }
+
+        byte[] buffer = new byte[BUFFER_SIZE + 8];
+        socket.receive(receivePacket);
+
+        DatagramPacket filePacket = new DatagramPacket(buffer, buffer.length);
+        System.out.println("voor filepacket");
+        socket.receive(filePacket);
+        System.out.println("na filepacket");
+
+        String replacePacket = new String(filePacket.getData(), 0, filePacket.getLength());
+        System.out.println(replacePacket);
+        if (replacePacket.contains("YES_DO_A_REPLACE")) {
+            file.delete();
+            System.out.println("file deleted");
+        }
+
+    }
 
 }
