@@ -5,6 +5,7 @@ import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.SocketTimeoutException;
+import java.nio.file.Files;
 import java.util.Arrays;
 
 public class Protocol {
@@ -138,24 +139,10 @@ public class Protocol {
         return hashFunction;
     }
 
-    //TODO IMPLEMENTATION FOR WAITFORACK
-    public static void waitForAck(DatagramSocket socket, int expectedSeqNum) throws IOException {
-        boolean ackReceived = false;
-        while (!ackReceived) {
-            byte[] ackBuffer = new byte[HEADER_SIZE];
-            DatagramPacket ackReceivePacket = new DatagramPacket(ackBuffer, ackBuffer.length);
-            socket.receive(ackReceivePacket);
-
-            // Extract the sequence number from the acknowledgement header
-            int seqNum = Protocol.getSeqNum(ackReceivePacket.getData());
-
-            if (seqNum == expectedSeqNum) {
-                System.out.println("Acknowledgement received with seqnum: " + seqNum);
-                ackReceived = true;
-            } else {
-                System.out.println("Unexpected acknowledgement received with seqnum: " + seqNum);
-            }
-        }
+    public static boolean checkFileHash(File file, String expectedHash) throws IOException {
+        byte[] fileData = Files.readAllBytes(file.toPath());
+        String actualHash = Protocol.getHash(fileData);
+        return actualHash.equals(expectedHash);
     }
 
 }

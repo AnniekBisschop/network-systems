@@ -139,15 +139,17 @@ public class Server {
         }
 
         String filePath = fileToUpload.getPath(); // get the path of the file
-        // create a new File object based on the path
         File uploadedFile = new File(filePath);
 
-        // compare the hashes of the two files
-        byte[] fileData = Files.readAllBytes(uploadedFile.toPath());
-        String expectedHash = Protocol.getHash(fileData);
-        boolean hashesMatch = hashFromClient.equals(expectedHash);
-        System.out.println("hashes match:" + hashesMatch);
+        boolean hashesMatch = Protocol.checkFileHash(uploadedFile, hashFromClient);
+        if (hashesMatch) {
+            System.out.println("\u001B[32mThis file is safe to store, hashes match\u001B[0m");
+        } else {
+            System.err.println("This file could be corrupted");
+        }
+
         System.out.println("File upload successful");
+
         fileOutputStream.close();
 
     }
