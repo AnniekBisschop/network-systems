@@ -302,7 +302,7 @@ private static void sendWelcomeMessage(DatagramSocket socket, DatagramPacket rec
                     socket.send(responsePacket);
                     System.out.println("list sent to client");
                     // wait for acknowledgement from client
-                    socket.setSoTimeout(2000); // set the timeout to 5 seconds waiting for client answer
+                    socket.setSoTimeout(2000); // set the timeout to 2 seconds waiting for client answer
 
                     DatagramPacket ackPacket = Protocol.receiveAck(socket, receivePacket, seqNum);
                     seqNum = Protocol.getSeqNum(ackPacket.getData());

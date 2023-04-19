@@ -422,18 +422,28 @@ private static void removeFile(DatagramSocket socket, InetAddress serverAddress,
 
 
 
-private static void showList(DatagramSocket socket, InetAddress serverAddress, DatagramPacket receivePacket, int seqNum) {
+private static void showList(DatagramSocket socket, InetAddress serverAddress, DatagramPacket receivePacket, int seqNum) {boolean ackReceived = false;
+    int maxTries = 3; // set maximum number of tries to send the list request
+    int tries = 0; // initialize the number of tries
+    while (!ackReceived && tries < maxTries) {
     try {
         // Send list request to server
-        byte[] header = Protocol.createHeader(1,  0);
+        byte[] header = Protocol.createHeader(1, 0);
         String message = "list";
         commandRequestToServer(socket, serverAddress, header, message);
         System.out.println("list request send");
-
+        socket.setSoTimeout(2000);
         // Receive ack from server
-       Protocol.receiveAck(socket,receivePacket,seqNum);
-
+        Protocol.receiveAck(socket, receivePacket, seqNum);
+        ackReceived = true;
+        socket.setSoTimeout(0);
+    } catch (IOException e) {
+        System.out.println("Timeout waiting for acknowledgement. Retrying...");
+        tries++;
+    }
+    }
         // Receive list from server
+    try {
         byte[] listBufferResponse = new byte[1024];
         DatagramPacket listPacketResponse = new DatagramPacket(listBufferResponse, listBufferResponse.length);
         socket.receive(listPacketResponse);
@@ -449,12 +459,53 @@ private static void showList(DatagramSocket socket, InetAddress serverAddress, D
         String responseList = new String(responseData, 0, listPacketResponse.getLength() - HEADER_SIZE);
 
         System.out.println(responseList);
-
-
     } catch (IOException e) {
-        e.printStackTrace();
+        System.out.println("A problem occurred while communicating with server, please try again or stop the program");
+        return;
     }
 }
+
+
+
+//
+//
+//
+//            // Receive ack from server
+//            Protocol.receiveAck(socket, receivePacket, seqNum);
+//
+//
+//            // Receive list from server
+//            byte[] listBufferResponse = new byte[1024];
+//            DatagramPacket listPacketResponse = new DatagramPacket(listBufferResponse, listBufferResponse.length);
+//            socket.receive(listPacketResponse);
+//            System.out.println("Length of packet " + listPacketResponse.getLength());
+//
+//            // Send acknowledgment back to the server
+//            Protocol.sendAck(socket, receivePacket, seqNum);
+//            System.out.println("Ack sent with receivepacket: " + receivePacket.getLength() + "seqnum: " + seqNum);
+//
+//            // Extract and print file list
+//            byte[] data = listPacketResponse.getData();
+//            byte[] responseData = Arrays.copyOfRange(data, HEADER_SIZE, data.length);
+//            String responseList = new String(responseData, 0, listPacketResponse.getLength() - HEADER_SIZE);
+//            System.out.println(responseList);
+//
+//            socket.setSoTimeout(0); // disable timeout
+//
+//        } catch (SocketTimeoutException e) {
+//            System.out.println("Acknowledgement not received, trying again...");
+//            tries++;
+//            if (tries == maxTries) {
+//                System.out.println("Please try again, not able to retrieve list. " + e.getMessage());
+//                return;
+//            }
+//        } catch (IOException e) {
+//            System.out.println("IOException occurred while communicating with server: " + e.getMessage());
+//            System.exit(1);
+//        }
+//    }
+//}
+
 
     public static boolean connectToServer(DatagramSocket socket, InetAddress serverAddress) {
         boolean ackReceived = false;
