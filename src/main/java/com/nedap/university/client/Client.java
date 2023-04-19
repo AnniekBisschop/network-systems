@@ -52,29 +52,16 @@ public class Client {
                 String choice = in.readLine();
 
                 switch (choice) {
-                    case "1":
-                        uploadFile(socket, serverAddress, in, receivePacket);
-                        break;
-                    case "2":
-                        downloadFile(socket, serverAddress, in, receivePacket, seqNum);
-                        break;
-                    case "3":
-                        removeFile(socket, serverAddress, in, receivePacket, seqNum);
-                        break;
-                    case "4":
-                        replaceFile(socket, serverAddress, in, receivePacket, seqNum);
-                        break;
-                    case "5":
-                        showList(socket, serverAddress, receivePacket, seqNum);
-                        break;
-                    case "6":
+                    case "1" -> uploadFile(socket, serverAddress, in, receivePacket);
+                    case "2" -> downloadFile(socket, serverAddress, in, receivePacket, seqNum);
+                    case "3" -> removeFile(socket, serverAddress, in, receivePacket, seqNum);
+                    case "4" -> replaceFile(socket, serverAddress, in, receivePacket, seqNum);
+                    case "5" -> showList(socket, serverAddress, receivePacket, seqNum);
+                    case "6" -> {
                         System.out.println("Exiting program...");
-                        // TODO: MORE CODE FOR EXITING PROGRAM?
                         System.exit(0);
-                        break;
-                    default:
-                        System.out.println("Invalid choice");
-                        break;
+                    }
+                    default -> System.out.println("Invalid choice");
                 }
 
                 printMenu(); // Call the printMenu() method after each iteration of the while loop.
@@ -216,7 +203,7 @@ public class Client {
             Protocol.receiveAck(socket, receivePacket,seqNum);
             byte[] ackData = receivePacket.getData();
             System.out.println("ACK data: " + new String(ackData, 0, receivePacket.getLength()));
-            System.out.println("End ack received");
+            System.out.println("\u001B[32mFile upload successful\u001B[0m");
             } catch (IOException e) {
                 throw new RuntimeException(e);
             }

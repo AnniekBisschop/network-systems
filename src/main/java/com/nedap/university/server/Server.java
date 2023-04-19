@@ -80,19 +80,23 @@ public class Server {
 
         System.out.println("Stopped");
     }
+private static void sendWelcomeMessage(DatagramSocket socket, DatagramPacket receivePacket, int seqNum, int ackNum) throws IOException {
+    DatagramPacket responsePacket;
+    System.out.println("Hello message received from " + receivePacket.getAddress());
 
-    private static void sendWelcomeMessage(DatagramSocket socket, DatagramPacket receivePacket, int seqNum, int ackNum) throws IOException {
-        DatagramPacket responsePacket;
-        System.out.println("Hello message received from " + receivePacket.getAddress());
-
-        // send a response with available options
-        System.out.println("Menu options sent to client");
+    try {
+        // send a welcome message
+        System.out.println("Welcome message sent to client");
         responsePacket = Protocol.createResponsePacket("Welcome, You have successfully connected to the server.", socket, receivePacket, 1);
         socket.send(responsePacket);
 
         // Send an acknowledgement
         Protocol.sendAck(socket, receivePacket, seqNum);
+    } catch (IOException e) {
+        // Handle the exception
+        System.err.println("Error sending welcome message: " + e.getMessage());
     }
+}
 
     public static void uploadFileToServer(DatagramSocket socket, DatagramPacket receivePacket, String[] messageArray, int seqNum) throws IOException {
         // log that the remove request has been received
