@@ -24,6 +24,7 @@ public class Client {
     private static final int PAYLOAD_SIZE = 1024;
     private static final int BUFFER_SIZE = PAYLOAD_SIZE + HEADER_SIZE;
     private static final String pathToDirectory = "/Users/anniek.bisschop/Networking/network-systems/src/main/java/com/nedap/university/download/";
+
     public static void main(String[] args) {
         DatagramSocket socket = null;
         try {
@@ -31,6 +32,7 @@ public class Client {
 
             // Get the IP address of the server we want to send data to
             InetAddress serverAddress = InetAddress.getByName("localhost");
+            //172.16.1.1
 
             if (connectToServer(socket, serverAddress)) {
                 // connection established, continue with file transfer
@@ -166,9 +168,6 @@ public class Client {
                 System.out.println("Returning to main menu, please try again...");
                 return; // exit the method and return to the main menu
             }
-
-
-
             // set the maximum size of each packet to 1024 bytes
             int maxPacketSize = 1024;
             int seqNum = 0;
@@ -213,7 +212,9 @@ public class Client {
             }
     }
     private static void downloadFile(DatagramSocket socket, InetAddress serverAddress, BufferedReader in, DatagramPacket receivePacket, int seqNum) throws IOException {
-//        showList(socket,serverAddress,receivePacket,seqNum);
+
+        showList(socket,serverAddress,receivePacket,seqNum);
+
         System.out.println("Please enter a file that is on the list");
         // send download request to server
         System.out.print("Filename: ");
@@ -301,7 +302,8 @@ public class Client {
 
 
 private static void removeFile(DatagramSocket socket, InetAddress serverAddress, BufferedReader in, DatagramPacket receivePacket, int seqNum) {
-    try {
+        showList(socket,serverAddress,receivePacket,seqNum);
+        try {
         System.out.print("Enter name of file you want to remove: ");
         String fileName = in.readLine();
 
@@ -354,6 +356,7 @@ private static void removeFile(DatagramSocket socket, InetAddress serverAddress,
 
 
     private static void replaceFile(DatagramSocket socket, InetAddress serverAddress, BufferedReader in, DatagramPacket receivePacket, int seqNum) throws IOException {
+        showList(socket,serverAddress,receivePacket,seqNum);
         try {
             // send upload request to server
             System.out.print("Enter the file you want to replace on the server: ");

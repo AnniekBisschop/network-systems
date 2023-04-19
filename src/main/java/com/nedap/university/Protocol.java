@@ -103,7 +103,6 @@ public class Protocol {
 
         // Send the acknowledgement packet
         socket.send(ackPacket);
-        System.out.println("Ack sent with seqnum: " + seqNum);
     }
 
     public static DatagramPacket receiveAck(DatagramSocket socket, DatagramPacket receivePacket, int seqNum) throws IOException {

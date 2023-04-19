@@ -20,9 +20,8 @@ public class Server {
     private static final int HEADER_SIZE = 8;
     private static final int PAYLOAD_SIZE = 1024;
     private static final int BUFFER_SIZE = PAYLOAD_SIZE + HEADER_SIZE;
-    //pi: "home/pi/data"
     private static final String pathToDirectory = "/Users/anniek.bisschop/Networking/network-systems/src/main/java/com/nedap/university/data/";
-
+//    private static final String pathToDirectory = "home/pi/data/";
 
 
 

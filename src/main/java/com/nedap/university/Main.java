@@ -2,12 +2,6 @@ package com.nedap.university;
 
 import com.nedap.university.server.Server;
 
-import java.io.IOException;
-import java.net.DatagramPacket;
-import java.net.DatagramSocket;
-import java.net.InetAddress;
-import java.net.SocketException;
-
 public class Main {
 
     private static boolean keepAlive = true;
