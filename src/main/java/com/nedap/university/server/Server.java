@@ -97,7 +97,7 @@ private static void sendWelcomeMessage(DatagramSocket socket, DatagramPacket rec
     }
 }
 
-    public static void uploadFileToServer(DatagramSocket socket, DatagramPacket receivePacket, String[] messageArray, int seqNum) throws IOException {
+public static void uploadFileToServer(DatagramSocket socket, DatagramPacket receivePacket, String[] messageArray, int seqNum) throws IOException {
         // log that the remove request has been received
         System.out.println("Received upload request from client " + receivePacket.getAddress() + ":" + receivePacket.getPort());
         Protocol.sendAck(socket, receivePacket, seqNum);
@@ -200,11 +200,9 @@ private static void sendWelcomeMessage(DatagramSocket socket, DatagramPacket rec
                 boolean receivedExpectedSeqNum = false;
                 long startTime = System.currentTimeMillis();// get the start time
                 int retransmits = 0; // initialize the retransmit counter
+
                 while (!receivedExpectedSeqNum) {
                     socket.send(packet);
-//                    byte[] sendData = packet.getData();
-//                    System.out.println("Packet data: " + new String(sendData, 0, packet.getLength()));
-                    // get the sequence number of the packet
                     int packetSeqNum = Protocol.getSeqNum(packet.getData());
                     System.out.println("Sending packet with seqnum " + packetSeqNum);
                     // wait for the ack packet with the expected sequence number
@@ -236,6 +234,7 @@ private static void sendWelcomeMessage(DatagramSocket socket, DatagramPacket rec
                     }
                 }
             }
+
                 // send final packet with end-of-file message
             byte[] eofMsg = "END_OF_FILE".getBytes();
             DatagramPacket eofPacket = Protocol.createResponsePacket(eofMsg, socket, receivePacket, seqNum);
@@ -279,9 +278,6 @@ private static void sendWelcomeMessage(DatagramSocket socket, DatagramPacket rec
             } catch (IOException e) {
                 System.err.println("Error sending response packet: " + e.getMessage());
             }
-//            // send a response to the client indicating the file was not found on the server
-//            responsePacket = Protocol.createResponsePacket("File not found on server", socket, receivePacket, 1);
-//            socket.send(responsePacket);
         }
     }
     private static void listAllFilesOnServer(DatagramSocket socket, DatagramPacket receivePacket, int seqNum) throws IOException {
