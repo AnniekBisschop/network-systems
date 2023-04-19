@@ -32,52 +32,19 @@ public class Client {
             // Get the IP address of the server we want to send data to
             InetAddress serverAddress = InetAddress.getByName("localhost");
 
-            boolean ackReceived = false;
-            int maxTries = 3; // set maximum number of tries to send the hello packet
-            int tries = 0; // initialize the number of tries
-
-            while (!ackReceived && tries < maxTries) {
-                try {
-                    sendHelloPacketToServer(socket, serverAddress);
-                    if (tries > 0) {
-                        System.out.println("Hello packet retransmitted...");
-                    }
-                    // set timeout for receiving acknowledgment from server
-                    socket.setSoTimeout(5000); // 5 seconds
-
-                    // receive acknowledgement from server
-                    byte[] receiveBuffer = new byte[HEADER_SIZE];
-                    DatagramPacket receivePacket = new DatagramPacket(receiveBuffer, receiveBuffer.length);
-                    socket.receive(receivePacket);
-                    System.out.println("acknowledgement from server received: " + receivePacket);
-                    int seqNum = Protocol.getSeqNum(receivePacket.getData());
-                    int ackNum = Protocol.getAckNum(receivePacket.getData());
-                    System.out.println("seqnum" + seqNum);
-                    System.out.println("acknum" + ackNum);
-                    ackReceived = true;
-                    socket.setSoTimeout(0); // 5 seconds
-                } catch (SocketTimeoutException e) {
-                    System.out.println("Acknowledgement not received, trying again...");
-                    tries++;
-                    if(tries == maxTries){
-                        System.out.println("Please try to make a new connection to the server. Program stopped: " +e.getMessage());
-                    }
-                } catch (IOException e) {
-                    System.out.println("Please try to make a new connection to the server. Program stopped.");
-                    System.out.println("IOException occurred while communicating with server: " + e.getMessage());
-                    System.exit(1);
-                }
+            if (connectToServer(socket, serverAddress)) {
+                // connection established, continue with file transfer
+                System.out.println("Welcome, You have successfully connected to the server.");
             }
+
+
 
             // receive response from server
             byte[] receiveBuffer = new byte[1024 + HEADER_SIZE];
             DatagramPacket receivePacket = new DatagramPacket(receiveBuffer, receiveBuffer.length);
             socket.receive(receivePacket);
-            System.out.println("response from server received: " + receivePacket);
             int seqNum = Protocol.getSeqNum(receivePacket.getData());
             int ackNum = Protocol.getAckNum(receivePacket.getData());
-            System.out.println("seqnum" + seqNum);
-            System.out.println("acknum" + ackNum);
 
             // extract the data from the packet and convert it to a string
             byte[] data = new byte[receivePacket.getLength() - HEADER_SIZE];
@@ -507,6 +474,44 @@ private static void showList(DatagramSocket socket, InetAddress serverAddress, D
         e.printStackTrace();
     }
 }
+
+    public static boolean connectToServer(DatagramSocket socket, InetAddress serverAddress) {
+        boolean ackReceived = false;
+        int maxTries = 3; // set maximum number of tries to send the hello packet
+        int tries = 0; // initialize the number of tries
+
+        while (!ackReceived && tries < maxTries) {
+            try {
+                sendHelloPacketToServer(socket, serverAddress);
+                if (tries > 0) {
+                    System.out.println("Hello packet retransmitted...");
+                }
+                // set timeout for receiving acknowledgment from server
+                socket.setSoTimeout(5000); // 5 seconds
+
+                // receive acknowledgement from server
+                byte[] receiveBuffer = new byte[HEADER_SIZE];
+                DatagramPacket receivePacket = new DatagramPacket(receiveBuffer, receiveBuffer.length);
+                socket.receive(receivePacket);
+                int seqNum = Protocol.getSeqNum(receivePacket.getData());
+                int ackNum = Protocol.getAckNum(receivePacket.getData());
+                ackReceived = true;
+                socket.setSoTimeout(0); // disable timeout
+            } catch (SocketTimeoutException e) {
+                System.out.println("Acknowledgement not received, trying again...");
+                tries++;
+                if (tries == maxTries) {
+                    System.out.println("Please try to make a new connection to the server. Program stopped: " + e.getMessage());
+                }
+            } catch (IOException e) {
+                System.out.println("Please try to make a new connection to the server. Program stopped.");
+                System.out.println("IOException occurred while communicating with server: " + e.getMessage());
+                System.exit(1);
+            }
+        }
+
+        return ackReceived;
+    }
 private static void printMenu(){
         System.out.println("\nMenu Options:");
         System.out.println("1. Upload a file");
