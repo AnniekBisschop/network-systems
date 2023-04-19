@@ -59,6 +59,8 @@ public class Client {
                     case "5" -> showList(socket, serverAddress, receivePacket, seqNum);
                     case "6" -> {
                         System.out.println("Exiting program...");
+                        in.close();
+                        socket.close();
                         System.exit(0);
                     }
                     default -> System.out.println("Invalid choice");
@@ -67,8 +69,10 @@ public class Client {
                 printMenu(); // Call the printMenu() method after each iteration of the while loop.
             }
 
+        } catch (IOException e) {
+            System.err.println("An IO error occurred: " + e.getMessage());
         } catch (Exception e) {
-            e.printStackTrace();
+            System.err.println("An unexpected error occurred: " + e.getMessage());
         } finally {
             // close the socket after the user exits the program
             if (socket != null && !socket.isClosed()) {
