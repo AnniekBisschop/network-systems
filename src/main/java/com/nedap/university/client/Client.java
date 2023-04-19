@@ -37,21 +37,11 @@ public class Client {
                 System.out.println("Welcome, You have successfully connected to the server.");
             }
 
-
-
             // receive response from server
             byte[] receiveBuffer = new byte[1024 + HEADER_SIZE];
             DatagramPacket receivePacket = new DatagramPacket(receiveBuffer, receiveBuffer.length);
             socket.receive(receivePacket);
             int seqNum = Protocol.getSeqNum(receivePacket.getData());
-            int ackNum = Protocol.getAckNum(receivePacket.getData());
-
-            // extract the data from the packet and convert it to a string
-            byte[] data = new byte[receivePacket.getLength() - HEADER_SIZE];
-            System.arraycopy(receivePacket.getData(), HEADER_SIZE, data, 0, data.length);
-            String message = new String(data);
-            System.out.println(message);
-
 
             // read user choice from console
             BufferedReader in = new BufferedReader(new InputStreamReader(System.in));
