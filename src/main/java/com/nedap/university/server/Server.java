@@ -275,7 +275,14 @@ private static void sendWelcomeMessage(DatagramSocket socket, DatagramPacket rec
         } else {
             // send a response to the client indicating the file was not found on the server
             responsePacket = Protocol.createResponsePacket("File not found on server", socket, receivePacket, 1);
-            socket.send(responsePacket);
+            try {
+                socket.send(responsePacket);
+            } catch (IOException e) {
+                System.err.println("Error sending response packet: " + e.getMessage());
+            }
+//            // send a response to the client indicating the file was not found on the server
+//            responsePacket = Protocol.createResponsePacket("File not found on server", socket, receivePacket, 1);
+//            socket.send(responsePacket);
         }
     }
     private static void listAllFilesOnServer(DatagramSocket socket, DatagramPacket receivePacket, int seqNum) throws IOException {

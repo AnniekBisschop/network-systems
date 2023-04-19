@@ -329,9 +329,7 @@ private static void removeFile(DatagramSocket socket, InetAddress serverAddress,
             }
         }
 
-        if (ackReceived) {
-            System.out.println("remove req acknowledged");
-        } else {
+        if (!ackReceived) {
             System.out.println("remove req failed after " + maxRetries + " attempts");
             System.out.println("Returning to main menu, please try again...");
             return; // exit the method and return to the main menu
@@ -339,7 +337,7 @@ private static void removeFile(DatagramSocket socket, InetAddress serverAddress,
         // Receive response from server
         byte[] receiveData = Protocol.receiveData(socket, header.length);
         String response = new String(receiveData);
-        System.out.println("Received message: " + response.trim());
+        System.out.println("\u001B[32m" + response.trim() + "\u001B[0m");
 
     } catch (IOException e) {
         System.out.println("Error occurred while trying to remove file from server: " + e.getMessage());
@@ -464,48 +462,6 @@ private static void showList(DatagramSocket socket, InetAddress serverAddress, D
         return;
     }
 }
-
-
-
-//
-//
-//
-//            // Receive ack from server
-//            Protocol.receiveAck(socket, receivePacket, seqNum);
-//
-//
-//            // Receive list from server
-//            byte[] listBufferResponse = new byte[1024];
-//            DatagramPacket listPacketResponse = new DatagramPacket(listBufferResponse, listBufferResponse.length);
-//            socket.receive(listPacketResponse);
-//            System.out.println("Length of packet " + listPacketResponse.getLength());
-//
-//            // Send acknowledgment back to the server
-//            Protocol.sendAck(socket, receivePacket, seqNum);
-//            System.out.println("Ack sent with receivepacket: " + receivePacket.getLength() + "seqnum: " + seqNum);
-//
-//            // Extract and print file list
-//            byte[] data = listPacketResponse.getData();
-//            byte[] responseData = Arrays.copyOfRange(data, HEADER_SIZE, data.length);
-//            String responseList = new String(responseData, 0, listPacketResponse.getLength() - HEADER_SIZE);
-//            System.out.println(responseList);
-//
-//            socket.setSoTimeout(0); // disable timeout
-//
-//        } catch (SocketTimeoutException e) {
-//            System.out.println("Acknowledgement not received, trying again...");
-//            tries++;
-//            if (tries == maxTries) {
-//                System.out.println("Please try again, not able to retrieve list. " + e.getMessage());
-//                return;
-//            }
-//        } catch (IOException e) {
-//            System.out.println("IOException occurred while communicating with server: " + e.getMessage());
-//            System.exit(1);
-//        }
-//    }
-//}
-
 
     public static boolean connectToServer(DatagramSocket socket, InetAddress serverAddress) {
         boolean ackReceived = false;
