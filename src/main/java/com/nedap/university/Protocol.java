@@ -103,15 +103,6 @@ public class Protocol {
         return ackPacket;
     }
 
-    public static DatagramPacket receiveAck(DatagramSocket socket, DatagramPacket receivePacket, int seqNum, int timeout) throws IOException, SocketTimeoutException {
-        byte[] ackBuffer = new byte[HEADER_SIZE];
-        DatagramPacket ackPacket = new DatagramPacket(ackBuffer, HEADER_SIZE);
-        socket.setSoTimeout(timeout); // set the socket timeout
-        socket.receive(ackPacket);
-        socket.setSoTimeout(0); // reset the socket timeout
-        return ackPacket;
-    }
-
     public static byte[] receiveData(DatagramSocket socket, int headerLength) throws IOException {
         byte[] receiveData = new byte[1024];
         DatagramPacket receivePacket = new DatagramPacket(receiveData, receiveData.length);

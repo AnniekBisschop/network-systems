@@ -14,8 +14,8 @@ import java.util.Arrays;
 
 
 /*
-* Datagram packets can be only bytes
-* */
+ * Datagram packets can be only bytes
+ * */
 
 public class Client {
 
@@ -83,9 +83,9 @@ public class Client {
         }
     }
 
-    private static void sendHelloPacketToServer(DatagramSocket socket, InetAddress serverAddress){
+    private static void sendHelloPacketToServer(DatagramSocket socket, InetAddress serverAddress) {
         // create the header
-        byte[] header = Protocol.createHeader(0,0);
+        byte[] header = Protocol.createHeader(0, 0);
 
         // create the data string and convert it to a byte array
         String dataString = "Hello";
@@ -154,7 +154,6 @@ public class Client {
                     receiveAckFromServer(socket, expectedSeqNum);
                     System.out.println("upload ack packet received from server");
                     ackReceived = true;
-                    socket.setSoTimeout(0);
                 } catch (SocketTimeoutException e) {
                     numRetries++;
                     System.out.println("Timeout occurred, retrying...");
@@ -203,17 +202,18 @@ public class Client {
             socket.send(eofPacket);
             System.out.println("Final packet sent with seqnum " + seqNum);
 
-            Protocol.receiveAck(socket, receivePacket,seqNum);
+            Protocol.receiveAck(socket, receivePacket, seqNum);
             byte[] ackData = receivePacket.getData();
             System.out.println("ACK data: " + new String(ackData, 0, receivePacket.getLength()));
             System.out.println("\u001B[32mFile upload successful\u001B[0m");
-            } catch (IOException e) {
-                throw new RuntimeException(e);
-            }
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
     }
+
     private static void downloadFile(DatagramSocket socket, InetAddress serverAddress, BufferedReader in, DatagramPacket receivePacket, int seqNum) throws IOException {
 
-        showList(socket,serverAddress,receivePacket,seqNum);
+//        showList(socket, serverAddress, receivePacket, seqNum);
 
         System.out.println("Please enter a file that is on the list");
         // send download request to server
@@ -221,7 +221,7 @@ public class Client {
         String fileName = in.readLine();
         File file = new File(fileName);
 
-        byte[] header = Protocol.createHeader(0,  0);
+        byte[] header = Protocol.createHeader(0, 0);
         String message = "download " + file.getName();
         commandRequestToServer(socket, serverAddress, header, message);
 
@@ -262,21 +262,24 @@ public class Client {
         System.out.println("file outputstream");
 
         System.out.println("start receiving packets....");
-        while (numPacketsReceived < Integer.parseInt(amountPackages)) {
+        while (numPacketsReceived < Integer.parseInt(amountPackages) + 1) {
             // create a DatagramPacket to receive the packet from the client
             DatagramPacket filePacket = new DatagramPacket(buffer, buffer.length);
-            System.out.println("voor filepacket");
             socket.receive(filePacket);
-            System.out.println("na filepacket");
+
 
             String packetData = new String(filePacket.getData(), 0, filePacket.getLength());
+            System.out.println(packetData);
             if (packetData.contains("END_OF_FILE")) {
                 // send an ACK to the client
-                Protocol.sendAck(socket, receivePacket, Protocol.getSeqNum(filePacket.getData()));
+                int packetSeqNum = Protocol.getSeqNum(filePacket.getData());
+                System.out.println("seq num " + packetSeqNum );
+//                Protocol.sendAck(socket, receivePacket, Protocol.getSeqNum(filePacket.getData()));
                 break;  // exit the loop to finish receiving the file
             }
 
             int packetSeqNum = Protocol.getSeqNum(filePacket.getData());
+            System.out.println("seq num " + packetSeqNum );
             numPacketsReceived++;
 
             // write the payload to the output file starting after the header
@@ -301,62 +304,62 @@ public class Client {
     }
 
 
-private static void removeFile(DatagramSocket socket, InetAddress serverAddress, BufferedReader in, DatagramPacket receivePacket, int seqNum) {
-        showList(socket,serverAddress,receivePacket,seqNum);
+    private static void removeFile(DatagramSocket socket, InetAddress serverAddress, BufferedReader in, DatagramPacket receivePacket, int seqNum) {
+        showList(socket, serverAddress, receivePacket, seqNum);
         try {
-        System.out.print("Enter name of file you want to remove: ");
-        String fileName = in.readLine();
+            System.out.print("Enter name of file you want to remove: ");
+            String fileName = in.readLine();
 
-        // Send remove request to server
-        byte[] header = Protocol.createHeader(1, 0);
-        String message = "remove " + fileName;
-        int expectedSeqNum = Protocol.getSeqNum(header);
-        boolean ackReceived = false;
-        int maxRetries = 3; // maximum number of times to retry sending the packet
-        int numRetries = 0; // number of times the packet has been retried
+            // Send remove request to server
+            byte[] header = Protocol.createHeader(1, 0);
+            String message = "remove " + fileName;
+            int expectedSeqNum = Protocol.getSeqNum(header);
+            boolean ackReceived = false;
+            int maxRetries = 3; // maximum number of times to retry sending the packet
+            int numRetries = 0; // number of times the packet has been retried
 
-        while (!ackReceived && numRetries < maxRetries) {
-            commandRequestToServer(socket, serverAddress, header, message);
-            System.out.println("remove request sent");
+            while (!ackReceived && numRetries < maxRetries) {
+                commandRequestToServer(socket, serverAddress, header, message);
+                System.out.println("remove request sent");
 //
-            // Receive ack from server with a timeout of 5 seconds
-            try {
-                socket.setSoTimeout(5000); // set the socket timeout to 5 seconds
-                Protocol.receiveAck(socket,receivePacket,seqNum);
-                ackReceived = true; // set the flag to true if the ack is received
-                socket.setSoTimeout(0);
-            } catch (SocketTimeoutException e) {
-                numRetries++; // increment the retry count if the timeout occurs
-                System.out.println("Timeout occurred, retrying...");
+                // Receive ack from server with a timeout of 5 seconds
+                try {
+                    socket.setSoTimeout(5000); // set the socket timeout to 5 seconds
+                    Protocol.receiveAck(socket, receivePacket, seqNum);
+                    ackReceived = true; // set the flag to true if the ack is received
+                } catch (SocketTimeoutException e) {
+                    numRetries++; // increment the retry count if the timeout occurs
+                    System.out.println("Timeout occurred, retrying...");
+                }
             }
-        }
 
-        if (!ackReceived) {
-            System.out.println("remove req failed after " + maxRetries + " attempts");
-            System.out.println("Returning to main menu, please try again...");
-            return; // exit the method and return to the main menu
-        }
-        // Receive response from server
-        byte[] receiveData = Protocol.receiveData(socket, header.length);
-        String response = new String(receiveData);
-        System.out.println("\u001B[32m" + response.trim() + "\u001B[0m");
+            if (!ackReceived) {
+                System.out.println("remove req failed after " + maxRetries + " attempts");
+                System.out.println("Returning to main menu, please try again...");
+                return; // exit the method and return to the main menu
+            }
+            // Receive response from server
+            byte[] receiveData = Protocol.receiveData(socket, header.length);
+            String response = new String(receiveData);
+            System.out.println("\u001B[32m" + response.trim() + "\u001B[0m");
 
-    } catch (IOException e) {
-        System.out.println("Error occurred while trying to remove file from server: " + e.getMessage());
+        } catch (IOException e) {
+            System.out.println("Error occurred while trying to remove file from server: " + e.getMessage());
+        }
     }
-}
+
     private static void commandRequestToServer(DatagramSocket socket, InetAddress serverAddress, byte[] header, String message) throws IOException {
         byte[] commandBuffer = message.getBytes();
         byte[] command = new byte[header.length + commandBuffer.length];
         System.arraycopy(header, 0, command, 0, header.length);
-        System.arraycopy(commandBuffer, 0,command, header.length, commandBuffer.length);
+        System.arraycopy(commandBuffer, 0, command, header.length, commandBuffer.length);
         DatagramPacket commandPacket = new DatagramPacket(command, command.length, serverAddress, PORT);
         socket.send(commandPacket);
     }
 
 
     private static void replaceFile(DatagramSocket socket, InetAddress serverAddress, BufferedReader in, DatagramPacket receivePacket, int seqNum) throws IOException {
-        showList(socket,serverAddress,receivePacket,seqNum);
+        showList(socket, serverAddress, receivePacket, seqNum);
         try {
             // send upload request to server
             System.out.print("Enter the file you want to replace on the server: ");
@@ -379,7 +382,6 @@ private static void removeFile(DatagramSocket socket, InetAddress serverAddress,
                     socket.setSoTimeout(5000);
                     System.out.println("replace ack packet received from server");
                     ackReceived = true;
-                    socket.setSoTimeout(0);
                 } catch (SocketTimeoutException e) {
                     numRetries++;
                     System.out.println("Timeout occurred, retrying...");
@@ -409,7 +411,7 @@ private static void removeFile(DatagramSocket socket, InetAddress serverAddress,
             } else if (replaceQuestion.equalsIgnoreCase("no")) {
                 System.out.println("No selected. Returning to main menu");
                 return;
-            }else{
+            } else {
                 System.out.println("Invalid option. Returning to main menu");
                 return;
             }
@@ -422,49 +424,48 @@ private static void removeFile(DatagramSocket socket, InetAddress serverAddress,
     }
 
 
-
-private static void showList(DatagramSocket socket, InetAddress serverAddress, DatagramPacket receivePacket, int seqNum) {boolean ackReceived = false;
-    int maxTries = 3; // set maximum number of tries to send the list request
-    int tries = 0; // initialize the number of tries
-    while (!ackReceived && tries < maxTries) {
-    try {
-        // Send list request to server
-        byte[] header = Protocol.createHeader(1, 0);
-        String message = "list";
-        commandRequestToServer(socket, serverAddress, header, message);
-        System.out.println("list request send");
-        socket.setSoTimeout(2000);
-        // Receive ack from server
-        Protocol.receiveAck(socket, receivePacket, seqNum);
-        ackReceived = true;
-        socket.setSoTimeout(0);
-    } catch (IOException e) {
-        System.out.println("Timeout waiting for acknowledgement. Retrying...");
-        tries++;
-    }
-    }
+    private static void showList(DatagramSocket socket, InetAddress serverAddress, DatagramPacket receivePacket, int seqNum) {
+        boolean ackReceived = false;
+        int maxTries = 3; // set maximum number of tries to send the list request
+        int tries = 0; // initialize the number of tries
+        while (!ackReceived && tries < maxTries) {
+            try {
+                // Send list request to server
+                byte[] header = Protocol.createHeader(1, 0);
+                String message = "list";
+                commandRequestToServer(socket, serverAddress, header, message);
+                System.out.println("list request send");
+                socket.setSoTimeout(2000);
+                // Receive ack from server
+                Protocol.receiveAck(socket, receivePacket, seqNum);
+                ackReceived = true;
+            } catch (IOException e) {
+                System.out.println("Timeout waiting for acknowledgement. Retrying...");
+                tries++;
+            }
+        }
         // Receive list from server
-    try {
-        byte[] listBufferResponse = new byte[1024];
-        DatagramPacket listPacketResponse = new DatagramPacket(listBufferResponse, listBufferResponse.length);
-        socket.receive(listPacketResponse);
-        System.out.println("length packet " + listPacketResponse.getLength());
+        try {
+            byte[] listBufferResponse = new byte[1024];
+            DatagramPacket listPacketResponse = new DatagramPacket(listBufferResponse, listBufferResponse.length);
+            socket.receive(listPacketResponse);
+            System.out.println("length packet " + listPacketResponse.getLength());
 
-        // Send acknowledgment back to the server
-        Protocol.sendAck(socket, receivePacket, seqNum);
-        System.out.println("Ack sent with receivepacket: " + receivePacket.getLength() + "seqnum: " + seqNum);
+            // Send acknowledgment back to the server
+            Protocol.sendAck(socket, receivePacket, seqNum);
+            System.out.println("Ack sent with receivepacket: " + receivePacket.getLength() + "seqnum: " + seqNum);
 
-        // Extract and print file list
-        byte[] data = listPacketResponse.getData();
-        byte[] responseData = Arrays.copyOfRange(data, HEADER_SIZE, data.length);
-        String responseList = new String(responseData, 0, listPacketResponse.getLength() - HEADER_SIZE);
+            // Extract and print file list
+            byte[] data = listPacketResponse.getData();
+            byte[] responseData = Arrays.copyOfRange(data, HEADER_SIZE, data.length);
+            String responseList = new String(responseData, 0, listPacketResponse.getLength() - HEADER_SIZE);
 
-        System.out.println(responseList);
-    } catch (IOException e) {
-        System.out.println("A problem occurred while communicating with server, please try again or stop the program");
-        return;
+            System.out.println(responseList);
+        } catch (IOException e) {
+            System.out.println("A problem occurred while communicating with server, please try again or stop the program");
+            return;
+        }
     }
-}
 
     public static boolean connectToServer(DatagramSocket socket, InetAddress serverAddress) {
         boolean ackReceived = false;
@@ -487,7 +488,6 @@ private static void showList(DatagramSocket socket, InetAddress serverAddress, D
                 int seqNum = Protocol.getSeqNum(receivePacket.getData());
                 int ackNum = Protocol.getAckNum(receivePacket.getData());
                 ackReceived = true;
-                socket.setSoTimeout(0); // disable timeout
             } catch (SocketTimeoutException e) {
                 System.out.println("Acknowledgement not received, trying again...");
                 tries++;
@@ -503,7 +503,8 @@ private static void showList(DatagramSocket socket, InetAddress serverAddress, D
 
         return ackReceived;
     }
-private static void printMenu(){
+
+    private static void printMenu() {
         System.out.println("\nMenu Options:");
         System.out.println("1. Upload a file");
         System.out.println("2. Download a file");
