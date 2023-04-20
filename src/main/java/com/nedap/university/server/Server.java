@@ -256,7 +256,7 @@ public class Server {
         if (fileToRemove.exists()) {
             try {
                 Files.delete(fileToRemove.toPath());
-                System.out.println("file removed successfully");
+                System.out.println("\u001B[32mFile removed successfully\u001B[0m");
                 // send a response to the client indicating the remove was successful
                 responsePacket = Protocol.createResponsePacket("File removed successfully", socket, receivePacket, 1);
                 socket.send(responsePacket);

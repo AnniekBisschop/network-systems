@@ -330,8 +330,6 @@ public class Client {
 
             while (!ackReceived && numRetries < maxRetries) {
                 commandRequestToServer(socket, serverAddress, header, message);
-                System.out.println("remove request sent");
-//
                 // Receive ack from server with a timeout of 5 seconds
                 try {
                     Protocol.receiveAck(socket, receivePacket, seqNum);
