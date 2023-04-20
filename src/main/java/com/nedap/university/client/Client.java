@@ -230,7 +230,7 @@ public class Client {
 
     private static void downloadFile(DatagramSocket socket, InetAddress serverAddress, BufferedReader in, DatagramPacket receivePacket, int seqNum) throws IOException {
 
-//        showList(socket, serverAddress, receivePacket, seqNum);
+        showList(socket, serverAddress, receivePacket, seqNum);
 
         System.out.println("Please enter a file that is on the list");
         // send download request to server
@@ -246,20 +246,17 @@ public class Client {
         Protocol.receiveAck(socket, receivePacket, seqNum);
         // print the contents of the ACK packet
         byte[] ackData = receivePacket.getData();
-        System.out.println("ACK data: " + new String(ackData, 0, receivePacket.getLength()));
 
         byte[] receiveData = Protocol.receiveData(socket, header.length);
         String response = new String(receiveData);
-        System.out.println("Received message: " + response.trim());
 
-// split the response into parts using whitespace as the delimiter
+
+        // split the response into parts using whitespace as the delimiter
         String[] parts = response.trim().split("\\s+");
 
-// select the third element (index 2) from the parts array
+        // select the third element (index 2) from the parts array
         String amountPackages = parts[5];
         String hashFromServer = parts[6];
-        System.out.println("amount packages " + amountPackages + " hash: " + hashFromServer);
-
 
 //        Protocol.receiveAck(socket,receivePacket,seqNum);
 //        // print the contents of the ACK packet
@@ -269,16 +266,16 @@ public class Client {
 
         // create a File object to represent the downloaded file
         file = new File(pathToDirectory + fileName);
-        System.out.println("na new File");
+
         // create a buffer to hold the incoming data
         byte[] buffer = new byte[BUFFER_SIZE + 8];
         int numPacketsReceived = 0;
 
         // create a FileOutputStream to write the data to a file
         FileOutputStream fileOutputStream = new FileOutputStream(file);
-        System.out.println("file outputstream");
 
-        System.out.println("start receiving packets....");
+
+        System.out.println("start downloading....");
         while (numPacketsReceived < Integer.parseInt(amountPackages) + 1) {
             // create a DatagramPacket to receive the packet from the client
             DatagramPacket filePacket = new DatagramPacket(buffer, buffer.length);
@@ -286,17 +283,13 @@ public class Client {
 
 
             String packetData = new String(filePacket.getData(), 0, filePacket.getLength());
-            System.out.println(packetData);
             if (packetData.contains("END_OF_FILE")) {
                 // send an ACK to the client
                 int packetSeqNum = Protocol.getSeqNum(filePacket.getData());
-                System.out.println("seq num " + packetSeqNum);
-//                Protocol.sendAck(socket, receivePacket, Protocol.getSeqNum(filePacket.getData()));
                 break;  // exit the loop to finish receiving the file
             }
 
             int packetSeqNum = Protocol.getSeqNum(filePacket.getData());
-            System.out.println("seq num " + packetSeqNum);
             numPacketsReceived++;
 
             // write the payload to the output file starting after the header
@@ -311,7 +304,7 @@ public class Client {
 
         boolean hashesMatch = Protocol.checkFileHash(downloadedFile, hashFromServer);
         if (hashesMatch) {
-            System.out.println("\u001B[32mThis file is safe to open, hashes match\u001B[0m");
+            System.out.println("\u001B[32mThis file is downloaded and safe to open, hashes match\u001B[0m");
         } else {
             System.err.println("This file could be corrupted");
         }

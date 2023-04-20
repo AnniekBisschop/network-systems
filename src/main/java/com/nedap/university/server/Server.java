@@ -180,21 +180,16 @@ public class Server {
             // set the maximum size of each packet to 1024 bytes
             int maxPacketSize = 1024;
             int numPackets = (int) Math.ceil(fileData.length / (double) maxPacketSize);
-            System.out.println("number of Packets is: " + numPackets);
 
             // send a response to the client indicating that the server is ready to send the file
             String message = "Ready to send file " + fileName + " " + numPackets + " " + expectedHash;
-            System.out.println("ready to send file " + fileName + " numPackets:" + numPackets + " " + "expected hash" + expectedHash);
             responsePacket = Protocol.createResponsePacket(message, socket, receivePacket, seqNum);
             socket.send(responsePacket);
-            System.out.println("ready to send verzonden");
             seqNum++;
 
             boolean packetTransmissionFailed = false;
             for (int i = 0; i < fileData.length; i += maxPacketSize) {
-                System.out.println("Testing in the for with i:" + i);
                 if (packetTransmissionFailed) {
-                    System.out.println("Testing packetTransmissionFailed");
                     break;
                 }
                 // Extract a portion of the file data as a new byte array starting from index i and up to a maximum of maxPacketSize bytes or less if the end of the file has been reached.
@@ -206,19 +201,14 @@ public class Server {
                 int retransmitCounter = 0; // initialize the retransmit counter
                 int overallTimeout = MAX_RETRANSMITS * RETRANSMIT_TIMEOUT;
                 while (!receivedExpectedSeqNum && !packetTransmissionFailed) {
-                    System.out.println("Tries to send packet");
                     socket.send(packet);
-                    System.out.println("Packet sent");
                     int packetSeqNum = Protocol.getSeqNum(packet.getData());
-                    System.out.println("Sending packet with seqnum " + packetSeqNum);
                     // wait for the ack packet with the expected sequence number
                     try {
                         DatagramPacket ackPacket = Protocol.receiveAck(socket, receivePacket, seqNum);
                         int receivedSeqNum = Protocol.getSeqNum(ackPacket.getData());
-                        System.out.println("Ack received seqnum: " + receivedSeqNum);
 
                         if (receivedSeqNum == seqNum) {
-                            System.out.println("Testing receivedSeqNum == seqNum");
                             receivedExpectedSeqNum = true;
                             seqNum++;
                             retransmitCounter = 0; // reset the retransmit counter
@@ -246,8 +236,8 @@ public class Server {
             byte[] eofMsg = "END_OF_FILE".getBytes();
             DatagramPacket eofPacket = Protocol.createResponsePacket(eofMsg, socket, receivePacket, seqNum);
             socket.send(eofPacket);
-            System.out.println("Final packet sent with seqnum " + seqNum);
         }
+        System.out.println("\u001B[32mDownload complete\u001B[0m");
     }
 
 
