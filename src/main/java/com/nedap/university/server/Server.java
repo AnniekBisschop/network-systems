@@ -21,8 +21,8 @@ public class Server {
     private static int RETRANSMIT_TIMEOUT = 1000;
 
     private static final int BUFFER_SIZE = PAYLOAD_SIZE + HEADER_SIZE;
-    private static final String pathToDirectory = "/Users/anniek.bisschop/Networking/network-systems/src/main/java/com/nedap/university/data/";
-//    private static final String pathToDirectory = "home/pi/data/";
+    private static final String pathToDirectory = "";
+//
 
 
     public static void start() {

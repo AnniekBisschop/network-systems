@@ -23,7 +23,7 @@ public class Client {
     private static final int HEADER_SIZE = 8; // 4 bytes for seq, 4 bytes for ack
     private static final int PAYLOAD_SIZE = 1024;
     private static final int BUFFER_SIZE = PAYLOAD_SIZE + HEADER_SIZE;
-    private static final String pathToDirectory = "/Users/anniek.bisschop/Networking/network-systems/src/main/java/com/nedap/university/download/";
+    private static final String pathToDirectory = "";
     // Set maximum number of retransmissions
     private static final int MAX_RETRANSMITS = 100;
     // Set timeout value to 1 seconds
