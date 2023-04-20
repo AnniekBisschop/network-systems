@@ -116,7 +116,7 @@ public class Client {
         byte[] header = Arrays.copyOfRange(ackPacket.getData(), 0, HEADER_SIZE);
         int receivedSeqNum = Protocol.getSeqNum(header);
         if (receivedSeqNum == expectedSeqNum) {
-            System.out.println("Ack received for packet " + expectedSeqNum);
+            // ACK received for the expected packet
         } else {
             System.out.println("Unexpected ack received: expected " + expectedSeqNum + " but received " + receivedSeqNum);
         }
@@ -135,7 +135,6 @@ public class Client {
             // calculate total number of packets to be sent
             int numPackets = (int) Math.ceil(file.length() / (double) PAYLOAD_SIZE);
             byte[] fileData = Files.readAllBytes(Path.of(filePath));
-            System.out.println("number of Packets is: " + numPackets);
             String expectedHash = Protocol.getHash(fileData);
 
 
@@ -150,11 +149,9 @@ public class Client {
 
             while (!ackReceived && numRetries < maxRetries) {
                 commandRequestToServer(socket, serverAddress, header, message);
-                System.out.println("upload request sent");
 
                 try {
                     receiveAckFromServer(socket, expectedSeqNum);
-                    System.out.println("upload ack packet received from server");
                     ackReceived = true;
                 } catch (SocketTimeoutException e) {
                     numRetries++;
@@ -163,7 +160,7 @@ public class Client {
             }
 
             if (ackReceived) {
-                System.out.println("upload request acknowledged");
+                //upload request acknowledged
             } else {
                 System.out.println("upload request failed after " + maxRetries + " attempts");
                 System.out.println("Returning to main menu, please try again...");
@@ -177,7 +174,6 @@ public class Client {
             boolean packetTransmissionFailed = false;
             for (int i = 0; i < fileData.length; i += maxPacketSize) {
                 if (packetTransmissionFailed) {
-                    System.out.println("Testing packetTransmissionFailed");
                     break;
                 }
                 // Extract a portion of the file data as a new byte array starting from index i and up to a maximum of maxPacketSize bytes or less if the end of the file has been reached.
@@ -194,11 +190,6 @@ public class Client {
                         // wait for the ack packet with the expected sequence number
                         DatagramPacket ackPacket = Protocol.receiveAck(socket, receivePacket, seqNum);
                         int receivedSeqNum = Protocol.getSeqNum(ackPacket.getData());
-                        System.out.println("Ack received seqnum: " + receivedSeqNum);
-                        // print the contents of the ACK packet
-//                        byte[] ackData = receivePacket.getData();
-//                        System.out.println("ACK data: " + new String(ackData, 0, receivePacket.getLength()));
-
                         if (receivedSeqNum == seqNum) {
                             receivedExpectedSeqNum = true;
                             seqNum++;
@@ -226,12 +217,12 @@ public class Client {
             byte[] eofMsg = "END_OF_FILE".getBytes();
             DatagramPacket eofPacket = Protocol.createResponsePacket(eofMsg, socket, receivePacket, seqNum);
             socket.send(eofPacket);
-            System.out.println("Final packet sent with seqnum " + seqNum);
+            System.out.println("\u001B[32mFile upload successful\u001B[0m");
 
             Protocol.receiveAck(socket, receivePacket, seqNum);
             byte[] ackData = receivePacket.getData();
-            System.out.println("ACK data: " + new String(ackData, 0, receivePacket.getLength()));
-//            System.out.println("\u001B[32mFile upload successful\u001B[0m");
+
+
         } catch (IOException e) {
             throw new RuntimeException(e);
         }

@@ -102,7 +102,7 @@ public class Server {
         // log that the remove request has been received
         System.out.println("Received upload request from client " + receivePacket.getAddress() + ":" + receivePacket.getPort());
         Protocol.sendAck(socket, receivePacket, seqNum);
-        System.out.println("File to upload: " + messageArray[1]);
+        System.out.println("Filepath to upload: " + messageArray[1]);
 
         String fileNameToUpload = messageArray[1];
         File fileToUpload = new File(pathToDirectory, fileNameToUpload);
@@ -118,7 +118,7 @@ public class Server {
         FileOutputStream fileOutputStream = new FileOutputStream(fileToUpload);
 
         socket.receive(receivePacket);
-        System.out.println("start receiving packets....");
+
         while (numPacketsReceived < Integer.parseInt(amountPackages)) {
 
             // create a DatagramPacket to receive the packet from the client
@@ -152,7 +152,7 @@ public class Server {
             System.err.println("This file could be corrupted");
         }
 
-        System.out.println("File upload successful");
+        System.out.println("\u001B[32mFile upload successful\u001B[0m");
 
         fileOutputStream.close();
 
@@ -164,7 +164,6 @@ public class Server {
 
         int seqNum = 0;
         Protocol.sendAck(socket, receivePacket, seqNum);
-        System.out.println("ACK sent for download req");
         String fileName = messageArray[1];
         File file = new File(pathToDirectory + fileName);
 
