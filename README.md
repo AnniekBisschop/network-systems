@@ -26,9 +26,8 @@ To transfer the files UDP is used with an implementation of the stop-and-wait AR
       
 - If you have to login/configure the Pi, please scroll to Setup Pi
 
-- do a ./gradlew deploy
-
-
+- Do a ./gradlew deploy
+- When everything is finished, start the main in the client package
 ## Setup Pi
 
 [setup.md](pi_setup/setup.md) contains the description on how to setup the Pi. Before reading any further, follow the steps in that guide to set it up correctly for this assignment.
