@@ -296,8 +296,6 @@ public class Server {
         String[] fileList = directory.list();
 
         if (fileList != null) {
-            System.out.println("Listing files on server");
-
             boolean ackReceived = false;
             int maxTries = 3; // maximum number of times to try to send the packet
             int tries = 0; // initialize the number of tries
@@ -309,13 +307,12 @@ public class Server {
                     String responseMessage = "Here are the files in the directory:\n" + fileString;
                     responsePacket = Protocol.createResponsePacket(responseMessage, socket, receivePacket, 1);
                     socket.send(responsePacket);
+                    System.out.println("List sent");
                     byte[] responseData = responsePacket.getData();
-                    System.out.println("Response packet content: " + new String(responseData, 0, responsePacket.getLength()));
 
                     // wait for acknowledgement from client
                     DatagramPacket ackPacket = Protocol.receiveAck(socket, receivePacket, seqNum);
                     seqNum = Protocol.getSeqNum(ackPacket.getData());
-                    System.out.println("acknowledgement for list received seqnum =" + seqNum);
 
                     if (seqNum == 0) {
                         System.out.println("Acknowledgement received.");

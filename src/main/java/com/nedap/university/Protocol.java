@@ -51,7 +51,6 @@ public class Protocol {
                 (header[6] << 8) & 0x0000FF00 |
                 (header[7] << 0) & 0x000000FF;
     }
-
     /**
      Creates a response packet containing the given message as data and header information.
      @param message the message to include in the response packet

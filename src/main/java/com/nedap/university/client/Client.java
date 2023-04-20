@@ -454,18 +454,13 @@ public class Client {
         int tries = 0; // initialize the number of tries
         while (!ackReceived && tries < maxTries) {
             try {
-                // Send list request to server
+
                 byte[] header = Protocol.createHeader(1, 0);
                 String message = "list";
                 commandRequestToServer(socket, serverAddress, header, message);
-                System.out.println("list request send");
-                // Receive ack from server
-                ///
-//                DatagramPacket responsePacket = Protocol.receiveAck(socket, receivePacket, seqNum);
 
                 byte[] responseData = receivePacket.getData();
-                System.out.println("Response packet content: " + new String(responseData, 0, receivePacket.getLength()));
-                ///
+
                 ackReceived = true;
             } catch (IOException e) {
                 System.out.println("Timeout waiting for acknowledgement. Retrying...");
@@ -474,18 +469,11 @@ public class Client {
         }
         // Receive list from server
         try {
-            System.out.println("Response 1");
             byte[] listBufferResponse = new byte[1024 + 8];
             DatagramPacket listPacketResponse = new DatagramPacket(listBufferResponse, listBufferResponse.length);
-            System.out.println("Before receive");
             socket.receive(listPacketResponse);
-            System.out.println("Response packet content: " + new String(listBufferResponse, 0, listPacketResponse.getLength()));
-
-            System.out.println("length packet " + listPacketResponse.getLength());
-
             // Send acknowledgment back to the server
             Protocol.sendAck(socket, receivePacket, seqNum);
-            System.out.println("Ack sent with receivepacket: " + receivePacket.getLength() + "seqnum: " + seqNum);
 
             // Extract and print file list
             byte[] data = listPacketResponse.getData();
