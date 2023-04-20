@@ -25,7 +25,7 @@ public class Client {
     private static final int BUFFER_SIZE = PAYLOAD_SIZE + HEADER_SIZE;
     private static final String pathToDirectory = "/Users/anniek.bisschop/Networking/network-systems/src/main/java/com/nedap/university/download/";
     // Set maximum number of retransmissions
-    private static final int MAX_RETRANSMITS = 5;
+    private static final int MAX_RETRANSMITS = 100;
     // Set timeout value to 1 seconds
     private static final int RETRANSMIT_TIMEOUT = 1000;
     public static void main(String[] args) {

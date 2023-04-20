@@ -4,29 +4,24 @@ import java.io.File;
 import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
-import java.net.SocketTimeoutException;
 import java.nio.file.Files;
 import java.util.Arrays;
 
 public class Protocol {
 
     private static final int HEADER_SIZE = 8; // 4 bytes for seq, 4 bytes for ack
-
     /**
-     * This method takes in two integer parameters, seqNum and ackNum, and returns a byte array of size HEADER_SIZE,
-     * which is a constant set to 8.
-     * Create a header for a packet that includes the sequence number and acknowledgement number,
-     * which are both 4 bytes long.
+     Creates a header byte array using the given sequence number and acknowledgement number.
+     @param seqNum the sequence number to use in the header
+     @param ackNum the acknowledgement number to use in the header
+     @return a byte array representing the header with the given sequence and acknowledgement numbers
      */
     public static byte[] createHeader(int seqNum, int ackNum) {
-        //The first line of the method creates a new byte array called header with a length of HEADER_SIZE.
         byte[] header = new byte[HEADER_SIZE];
-        //set the first four bytes of the header array to the four bytes of the seqNum parameter, extract each byte.
         header[0] = (byte) ((seqNum >> 24) & 0xFF);
         header[1] = (byte) ((seqNum >> 16) & 0xFF);
         header[2] = (byte) ((seqNum >> 8) & 0xFF);
         header[3] = (byte) ((seqNum) & 0xFF);
-        //set the next three bytes of the header array to the three bytes of the ackNum parameter
         header[4] = (byte) ((ackNum >> 24) & 0xFF);
         header[5] = (byte) ((ackNum >> 16) & 0xFF);
         header[6] = (byte) ((ackNum >> 8) & 0xFF);
@@ -34,39 +29,37 @@ public class Protocol {
         return header;
     }
 
+    /**
+     Extracts the sequence number from the given header byte array.
+     @param header the header byte array to extract the sequence number from
+     @return the sequence number extracted from the header byte array
+     */
     public static int getSeqNum(byte[] header) {
         return (header[0] << 24) & 0xFF000000 |
                 (header[1] << 16) & 0x00FF0000 |
                 (header[2] << 8) & 0x0000FF00 |
                 (header[3] << 0) & 0x000000FF;
-        // ByteBuffer byteBuffer = ByteBuffer.wrap(header);
-        //return byteBuffer.getInt();
     }
-
-    // Extract the acknowledgement number from the packet header
+    /**
+     Extracts the acknowledgement number from the given header byte array.
+     @param header the header byte array to extract the acknowledgement number from
+     @return the acknowledgement number extracted from the header byte array
+     */
     public static int getAckNum(byte[] header) {
         return  (header[4] << 24) & 0xFF000000 |
                 (header[5] << 16) & 0x00FF0000 |
                 (header[6] << 8) & 0x0000FF00 |
                 (header[7] << 0) & 0x000000FF;
-        //ByteBuffer byteBuffer = ByteBuffer.wrap(header);
-        //byteBuffer.getInt(); // Skip over seqNum
-        //return byteBuffer.getInt();
     }
 
-//Different way to get seq and ack
-//    private static int getSeqNum(byte[] header) {
-//        ByteBuffer byteBuffer = ByteBuffer.wrap(header);
-//        return byteBuffer.getInt();
-//    }
-//
-//    private static int getAckNum(byte[] header) {
-//        ByteBuffer byteBuffer = ByteBuffer.wrap(header);
-//        byteBuffer.getInt(); // Skip over seqNum
-//        return byteBuffer.getInt();
-//    }
-
-    //method for String/messages
+    /**
+     Creates a response packet containing the given message as data and header information.
+     @param message the message to include in the response packet
+     @param socket the DatagramSocket to send the response packet on
+     @param receivePacket the packet received that triggered this response
+     @param seqNum the sequence number to use for the response packet
+     @return the DatagramPacket representing the response packet
+     */
     public static DatagramPacket createResponsePacket(String message, DatagramSocket socket, DatagramPacket receivePacket, int seqNum) {
         byte[] header = createHeader(seqNum, 0);
         byte[] responseBuffer = message.getBytes();
@@ -76,7 +69,14 @@ public class Protocol {
         return new DatagramPacket(response, response.length, receivePacket.getAddress(), receivePacket.getPort());
     }
 
-    //method for bytes
+    /**
+     Creates a response packet containing the given data and header information.
+     @param data the data to include in the response packet
+     @param socket the DatagramSocket to send the response packet on
+     @param receivePacket the packet received that triggered this response
+     @param seqNum the sequence number to use for the response packet
+     @return the DatagramPacket representing the response packet
+     */
     public static DatagramPacket createResponsePacket(byte[] data, DatagramSocket socket, DatagramPacket receivePacket, int seqNum) {
         byte[] header = createHeader(seqNum++, 0);
         byte[] response = new byte[header.length + data.length];
@@ -84,25 +84,39 @@ public class Protocol {
         System.arraycopy(data, 0, response, header.length, data.length);
         return new DatagramPacket(response, response.length, receivePacket.getAddress(), receivePacket.getPort());
     }
-
+    /**
+     Sends an acknowledgement packet on the specified socket for the given sequence number.
+     @param socket the DatagramSocket to send the acknowledgement on
+     @param receivePacket the packet to acknowledge
+     @param seqNum the sequence number to acknowledge
+     @throws IOException if there is an error sending the acknowledgement
+     */
     public static void sendAck(DatagramSocket socket, DatagramPacket receivePacket, int seqNum) throws IOException {
-        // Create a header with the sequence number and acknowledgement number
         byte[] ackHeader = createHeader(seqNum, seqNum + 1);
-
-        // Create a DatagramPacket object that only includes the header
         DatagramPacket ackPacket = new DatagramPacket(ackHeader, ackHeader.length, receivePacket.getAddress(), receivePacket.getPort());
-
-        // Send the acknowledgement packet
         socket.send(ackPacket);
     }
-
+    /**
+     Receives an acknowledgement packet on the specified socket.
+     @param socket the DatagramSocket to receive the acknowledgement on
+     @param receivePacket the packet to expect the acknowledgement for
+     @param seqNum the sequence number of the packet to expect the acknowledgement for
+     @return the DatagramPacket representing the received acknowledgement
+     @throws IOException if there is an error receiving the acknowledgement
+     */
     public static DatagramPacket receiveAck(DatagramSocket socket, DatagramPacket receivePacket, int seqNum) throws IOException {
         byte[] ackBuffer = new byte[HEADER_SIZE];
         DatagramPacket ackPacket = new DatagramPacket(ackBuffer, HEADER_SIZE);
         socket.receive(ackPacket);
         return ackPacket;
     }
-
+   /**
+    Receives a datagram packet on the specified socket and extracts the message data from it.
+    @param socket the DatagramSocket to receive the packet on
+    @param headerLength the length of the header to skip when extracting the message data
+    @return a byte array containing the extracted message data
+    @throws IOException if there is an error receiving the packet
+    */
     public static byte[] receiveData(DatagramSocket socket, int headerLength) throws IOException {
         byte[] receiveData = new byte[1024];
         DatagramPacket receivePacket = new DatagramPacket(receiveData, receiveData.length);
@@ -114,12 +128,24 @@ public class Protocol {
         return messageData;
     }
 
+    /**
+     Calculates the hash of the given byte array using the default hashing algorithm.
+     @param data the byte array to calculate the hash of
+     @return a string representation of the calculated hash value
+     */
     public static String getHash(byte[] data){
         int hash = Arrays.hashCode(data);
         String hashFunction = String.valueOf(hash);
         return hashFunction;
     }
 
+    /**
+     Checks the hash of a given file against an expected hash value.
+     @param file the file to check the hash of
+     @param expectedHash the expected hash value to compare against
+     @return true if the hash of the file matches the expected hash, false otherwise
+     @throws IOException if there is an error reading the file
+     */
     public static boolean checkFileHash(File file, String expectedHash) throws IOException {
         byte[] fileData = Files.readAllBytes(file.toPath());
         String actualHash = Protocol.getHash(fileData);
