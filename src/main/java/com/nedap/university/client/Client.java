@@ -150,7 +150,6 @@ public class Client {
                 System.out.println("upload request sent");
 
                 try {
-                    socket.setSoTimeout(5000);
                     receiveAckFromServer(socket, expectedSeqNum);
                     System.out.println("upload ack packet received from server");
                     ackReceived = true;
@@ -324,7 +323,6 @@ public class Client {
 //
                 // Receive ack from server with a timeout of 5 seconds
                 try {
-                    socket.setSoTimeout(5000); // set the socket timeout to 5 seconds
                     Protocol.receiveAck(socket, receivePacket, seqNum);
                     ackReceived = true; // set the flag to true if the ack is received
                 } catch (SocketTimeoutException e) {
@@ -379,7 +377,6 @@ public class Client {
                     commandRequestToServer(socket, serverAddress, header, message);
                     System.out.println("replace request sent");
                     receiveAckFromServer(socket, expectedSeqNum);
-                    socket.setSoTimeout(5000);
                     System.out.println("replace ack packet received from server");
                     ackReceived = true;
                 } catch (SocketTimeoutException e) {
@@ -435,7 +432,6 @@ public class Client {
                 String message = "list";
                 commandRequestToServer(socket, serverAddress, header, message);
                 System.out.println("list request send");
-                socket.setSoTimeout(2000);
                 // Receive ack from server
                 Protocol.receiveAck(socket, receivePacket, seqNum);
                 ackReceived = true;
@@ -463,7 +459,6 @@ public class Client {
             System.out.println(responseList);
         } catch (IOException e) {
             System.out.println("A problem occurred while communicating with server, please try again or stop the program");
-            return;
         }
     }
 
@@ -478,9 +473,6 @@ public class Client {
                 if (tries > 0) {
                     System.out.println("Hello packet retransmitted...");
                 }
-                // set timeout for receiving acknowledgment from server
-                socket.setSoTimeout(5000); // 5 seconds
-
                 // receive acknowledgement from server
                 byte[] receiveBuffer = new byte[HEADER_SIZE];
                 DatagramPacket receivePacket = new DatagramPacket(receiveBuffer, receiveBuffer.length);
