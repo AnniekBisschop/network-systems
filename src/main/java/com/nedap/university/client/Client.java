@@ -48,10 +48,9 @@ public class Client {
             socket.receive(receivePacket);
             int seqNum = Protocol.getSeqNum(receivePacket.getData());
 
-            // read user choice from console
             BufferedReader in = new BufferedReader(new InputStreamReader(System.in));
 
-            printMenu(); // Call the printMenu() method before the while loop.
+            printMenu();
 
             while (true) {
                 String choice = in.readLine();
@@ -71,7 +70,7 @@ public class Client {
                     default -> System.out.println("Invalid choice");
                 }
 
-                printMenu(); // Call the printMenu() method after each iteration of the while loop.
+                printMenu();
             }
 
         } catch (IOException e) {
@@ -85,7 +84,6 @@ public class Client {
             }
         }
     }
-
     private static void sendHelloPacketToServer(DatagramSocket socket, InetAddress serverAddress) {
         // create the header
         byte[] header = Protocol.createHeader(0, 0);
@@ -107,7 +105,6 @@ public class Client {
             System.err.println("IOException occurred while sending packet to server: " + e.getMessage());
         }
     }
-
 
     private static void receiveAckFromServer(DatagramSocket socket, int expectedSeqNum) throws IOException {
         byte[] ackBuffer = new byte[HEADER_SIZE];

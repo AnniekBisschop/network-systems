@@ -46,7 +46,6 @@ public class Server {
                 System.arraycopy(receivedData, HEADER_SIZE, data, 0, data.length);
                 String message = new String(data);
                 String[] messageArray = message.split(" ");
-                System.out.println("message for switch: " + message);
                 // perform different actions based on the first string in the array
                 switch (messageArray[0]) {
                     case "Hello":
@@ -240,7 +239,6 @@ public class Server {
         System.out.println("\u001B[32mDownload complete\u001B[0m");
     }
 
-
     private static void removeFileOnServer(DatagramSocket socket, DatagramPacket receivePacket, String[] messageArray, int seqNum) throws IOException {
         DatagramPacket responsePacket;
         byte[] responseBuffer;
@@ -304,7 +302,6 @@ public class Server {
                     seqNum = Protocol.getSeqNum(ackPacket.getData());
 
                     if (seqNum == 0) {
-                        System.out.println("Acknowledgement received.");
                         ackReceived = true;
                     } else {
                         System.out.println("Invalid acknowledgement received.");
@@ -325,15 +322,11 @@ public class Server {
             }
         }
     }
-
-
     private static void replaceFileOnServer(DatagramSocket socket, DatagramPacket receivePacket, String[] messageArray, int seqNum) throws IOException {
         DatagramPacket responsePacket;
         System.out.println("Received replace request from client " + receivePacket.getAddress() + ":" + receivePacket.getPort());
 
-
         Protocol.sendAck(socket, receivePacket, seqNum);
-        System.out.println("ACK sent for download req");
         String fileName = messageArray[1];
         File file = new File(pathToDirectory + fileName);
 
@@ -353,15 +346,12 @@ public class Server {
         socket.receive(receivePacket);
 
         DatagramPacket filePacket = new DatagramPacket(buffer, buffer.length);
-        System.out.println("voor filepacket");
         socket.receive(filePacket);
-        System.out.println("na filepacket");
 
         String replacePacket = new String(filePacket.getData(), 0, filePacket.getLength());
-        System.out.println(replacePacket);
         if (replacePacket.contains("YES_DO_A_REPLACE")) {
             file.delete();
-            System.out.println("file deleted");
+            System.out.println(fileName + " file deleted");
         }
 
     }
