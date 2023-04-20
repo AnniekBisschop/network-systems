@@ -309,7 +309,9 @@ public class Server {
                     String responseMessage = "Here are the files in the directory:\n" + fileString;
                     responsePacket = Protocol.createResponsePacket(responseMessage, socket, receivePacket, 1);
                     socket.send(responsePacket);
-                    System.out.println("list sent to client");
+                    byte[] responseData = responsePacket.getData();
+                    System.out.println("Response packet content: " + new String(responseData, 0, responsePacket.getLength()));
+
                     // wait for acknowledgement from client
                     DatagramPacket ackPacket = Protocol.receiveAck(socket, receivePacket, seqNum);
                     seqNum = Protocol.getSeqNum(ackPacket.getData());

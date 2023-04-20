@@ -433,7 +433,12 @@ public class Client {
                 commandRequestToServer(socket, serverAddress, header, message);
                 System.out.println("list request send");
                 // Receive ack from server
-                Protocol.receiveAck(socket, receivePacket, seqNum);
+                ///
+//                DatagramPacket responsePacket = Protocol.receiveAck(socket, receivePacket, seqNum);
+
+                byte[] responseData = receivePacket.getData();
+                System.out.println("Response packet content: " + new String(responseData, 0, receivePacket.getLength()));
+                ///
                 ackReceived = true;
             } catch (IOException e) {
                 System.out.println("Timeout waiting for acknowledgement. Retrying...");
@@ -442,9 +447,13 @@ public class Client {
         }
         // Receive list from server
         try {
-            byte[] listBufferResponse = new byte[1024];
+            System.out.println("Response 1");
+            byte[] listBufferResponse = new byte[1024 + 8];
             DatagramPacket listPacketResponse = new DatagramPacket(listBufferResponse, listBufferResponse.length);
+            System.out.println("Before receive");
             socket.receive(listPacketResponse);
+            System.out.println("Response packet content: " + new String(listBufferResponse, 0, listPacketResponse.getLength()));
+
             System.out.println("length packet " + listPacketResponse.getLength());
 
             // Send acknowledgment back to the server
@@ -457,7 +466,7 @@ public class Client {
             String responseList = new String(responseData, 0, listPacketResponse.getLength() - HEADER_SIZE);
 
             System.out.println(responseList);
-        } catch (IOException e) {
+        } catch (Exception e) {
             System.out.println("A problem occurred while communicating with server, please try again or stop the program");
         }
     }
