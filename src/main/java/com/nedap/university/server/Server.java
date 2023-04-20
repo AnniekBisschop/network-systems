@@ -16,7 +16,7 @@ public class Server {
     private static final int HEADER_SIZE = 8;
     private static final int PAYLOAD_SIZE = 1024;
     // Set maximum number of retransmissions
-    private static final int MAX_RETRANSMITS = 5;
+    private static final int MAX_RETRANSMITS = 100;
     // Set timeout value to 1 seconds
     private static int RETRANSMIT_TIMEOUT = 1000;
 
